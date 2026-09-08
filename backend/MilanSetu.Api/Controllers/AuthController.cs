@@ -1,11 +1,13 @@
 using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace MilanSetu.Api.Controllers;
 
 [ApiController]
 [Route("api/auth")]
+[EnableRateLimiting("auth")]
 public sealed class AuthController(AuthService authService, IConfiguration configuration) : ControllerBase
 {
     private const string DefaultCookieName = "milansetu_refresh";
@@ -48,6 +50,7 @@ public sealed class AuthController(AuthService authService, IConfiguration confi
         }
     }
 
+    [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(CancellationToken cancellationToken)
     {
