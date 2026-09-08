@@ -21,6 +21,14 @@ public enum ProfileVisibility
     Hidden = 3
 }
 
+public enum PreferenceImportance
+{
+    NoPreference = 1,
+    Flexible = 2,
+    Preferred = 3,
+    DealBreaker = 4
+}
+
 public class User
 {
     public Guid Id { get; set; }
@@ -68,6 +76,10 @@ public class Profile
     public User User { get; set; } = null!;
     public ICollection<ProfileLocation> Locations { get; set; } = new List<ProfileLocation>();
     public ICollection<ProfilePreference> Preferences { get; set; } = new List<ProfilePreference>();
+    public Education? Education { get; set; }
+    public Employment? Employment { get; set; }
+    public FamilyDetails? FamilyDetails { get; set; }
+    public Lifestyle? Lifestyle { get; set; }
 }
 
 public class Location
@@ -98,8 +110,50 @@ public class ProfilePreference
     public int? MinAge { get; set; }
     public int? MaxAge { get; set; }
     public bool? RelocationOpen { get; set; }
-    public string Importance { get; set; } = "Flexible";
+    public PreferenceImportance Importance { get; set; } = PreferenceImportance.Flexible;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
 
+    public Profile Profile { get; set; } = null!;
+}
+
+public class Education
+{
+    public Guid ProfileId { get; set; }
+    public string? HighestQualification { get; set; }
+    public string? FieldOfStudy { get; set; }
+    public string? Institution { get; set; }
+    public Profile Profile { get; set; } = null!;
+}
+
+public class Employment
+{
+    public Guid ProfileId { get; set; }
+    public string? Profession { get; set; }
+    public string? Industry { get; set; }
+    public string? EmploymentType { get; set; }
+    public string? WorkLocation { get; set; }
+    public Profile Profile { get; set; } = null!;
+}
+
+public class FamilyDetails
+{
+    public Guid ProfileId { get; set; }
+    public string? ParentsStatus { get; set; }
+    public string? SiblingsSummary { get; set; }
+    public string? FamilyLocation { get; set; }
+    public string? FamilyStructure { get; set; }
+    public Profile Profile { get; set; } = null!;
+}
+
+public class Lifestyle
+{
+    public Guid ProfileId { get; set; }
+    public string? FoodPreference { get; set; }
+    public string? Smoking { get; set; }
+    public string? Alcohol { get; set; }
+    public string? Exercise { get; set; }
+    public string? Interests { get; set; }
+    public string? Travel { get; set; }
+    public string? Pets { get; set; }
     public Profile Profile { get; set; } = null!;
 }
