@@ -34,6 +34,20 @@ public class User
     public DateTimeOffset? UpdatedAt { get; set; }
 
     public Profile? Profile { get; set; }
+    public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
+}
+
+public class RefreshToken
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string TokenHash { get; set; } = null!;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset ExpiresAt { get; set; }
+    public DateTimeOffset? RevokedAt { get; set; }
+    public Guid? ReplacedByTokenId { get; set; }
+
+    public User User { get; set; } = null!;
 }
 
 public class Profile

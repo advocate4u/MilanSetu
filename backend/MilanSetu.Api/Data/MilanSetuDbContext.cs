@@ -6,6 +6,7 @@ namespace MilanSetu.Api.Data;
 public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : DbContext(options)
 {
     public DbSet<User> Users => Set<User>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Profile> Profiles => Set<Profile>();
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<ProfileLocation> ProfileLocations => Set<ProfileLocation>();
@@ -25,6 +26,19 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.HasOne(x => x.Profile)
                 .WithOne(x => x.User)
                 .HasForeignKey<Profile>(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<RefreshToken>(entity =>
+        {
+            entity.ToTable("refresh_tokens");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
+            entity.HasOne(x => x.User)
+                .WithMany(x => x.RefreshTokens)
+                .HasForeignKey(x => x.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
