@@ -1,6 +1,5 @@
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddOpenApi();
 builder.Services.AddControllers();
 builder.Services.AddCors(options =>
 {
@@ -13,11 +12,6 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
 
 app.UseHttpsRedirection();
 app.UseCors("Web");
