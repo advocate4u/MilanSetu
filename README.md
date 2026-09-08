@@ -23,3 +23,20 @@ Android is intentionally deferred. The first product is the responsive web appli
 ## Development workflow
 
 Feature branches are used for implementation. Changes are built/tested and merged through pull requests; `main` remains the stable branch.
+
+## Local backend database configuration
+
+The API uses PostgreSQL when a `ConnectionStrings:DefaultConnection` value is configured. Keep credentials outside source control.
+
+For local development, set the connection string through user secrets or an environment-specific configuration source, for example:
+
+```text
+Host=localhost;Port=5432;Database=milansetu;Username=milansetu;Password=<local-password>
+```
+
+The API exposes:
+
+- `GET /api/health` — application health
+- `GET /api/health/database` — PostgreSQL connectivity status
+
+The database health endpoint returns `not-configured` when no connection string is supplied and does not expose connection details.
