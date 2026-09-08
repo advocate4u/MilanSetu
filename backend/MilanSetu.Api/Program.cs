@@ -34,8 +34,9 @@ app.MapGet("/api/health", () => Results.Ok(new
     service = "MilanSetu.Api"
 }));
 
-app.MapGet("/api/health/database", async (MilanSetuDbContext? db, CancellationToken cancellationToken) =>
+app.MapGet("/api/health/database", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
+    var db = services.GetService<MilanSetuDbContext>();
     if (db is null)
     {
         return Results.Ok(new { status = "not-configured", database = "postgresql" });
