@@ -24,7 +24,23 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
         return profile is null ? NotFound(new { message = "Profile has not been created yet." }) : Ok(ToResponse(profile));
     }
 
-    [HttpPut("me")]
+    [HttpPut("me/identity")]
+    public async Task<IActionResult> UpdateIdentity(ProfileIdentityRequest request, CancellationToken cancellationToken)
+    {
+        var userId = GetUserId();
+        var profile = await db.Profiles.SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
+        if (profile is null) return NotFound(new { message = "Create your profile first." });
+        if (request.ReligionId.HasValue && !await db.Religions.AnyAsync(x => x.Id == request.ReligionId && x.IsActive, cancellationToken)) return BadRequest(new { message = "Invalid religion." });
+        if (request.CommunityId.HasValue && !await db.Communities.AnyAsync(x => x.Id == request.CommunityId && x.IsActive && (!request.ReligionId.HasValue || x.ReligionId == request.ReligionId), cancellationToken)) return BadRequest(new { message = "Community does not belong to the selected religion." });
+        if (request.CasteId.HasValue && !await db.Castes.AnyAsync(x => x.Id == request.CasteId && x.IsActive && (!request.CommunityId.HasValue || x.CommunityId == request.CommunityId), cancellationToken)) return BadRequest(new { message = "Caste does not belong to the selected community." });
+        if (!Enum.IsDefined(request.Importance)) return BadRequest(new { message = "Invalid preference importance." });
+        var value = await db.ProfileIdentityPreferences.SingleOrDefaultAsync(x => x.ProfileId == profile.Id, cancellationToken);
+        if (value is null) { value = new ProfileIdentityPreference { ProfileId = profile.Id }; db.ProfileIdentityPreferences.Add(value); }
+        value.ReligionId=request.ReligionId; value.CommunityId=request.CommunityId; value.CasteId=request.CasteId; value.Importance=request.Importance;
+        await db.SaveChangesAsync(cancellationToken); return Ok(new { message = "Identity preferences saved." });
+    }
+
+    [HttpPut("me") ]
     public async Task<IActionResult> UpsertMine(ProfileRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
@@ -116,7 +132,7 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
     };
 }
 
-public sealed record ProfileRequest(
+public sealed record ProfileIdentityRequest(\n    int? ReligionId, int? CommunityId, int? CasteId, PreferenceImportance Importance);\n\npublic sealed record ProfileRequest(
     string? DisplayName,
     DateOnly DateOfBirth,
     Gender Gender,
