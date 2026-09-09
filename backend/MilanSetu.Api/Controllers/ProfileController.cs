@@ -15,12 +15,10 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
     public async Task<IActionResult> GetMine(CancellationToken cancellationToken)
     {
         var userId = GetUserId();
-        var profile = await db.Profiles
-            .AsNoTracking()
+        var profile = await db.Profiles.AsNoTracking()
             .Include(x => x.Locations).ThenInclude(x => x.Location)
             .Include(x => x.Preferences)
             .SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
-
         return profile is null ? NotFound(new { message = "Profile has not been created yet." }) : Ok(ToResponse(profile));
     }
 
@@ -35,27 +33,30 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
         if (request.CasteId.HasValue && !await db.Castes.AnyAsync(x => x.Id == request.CasteId && x.IsActive && (!request.CommunityId.HasValue || x.CommunityId == request.CommunityId), cancellationToken)) return BadRequest(new { message = "Caste does not belong to the selected community." });
         if (!Enum.IsDefined(request.Importance)) return BadRequest(new { message = "Invalid preference importance." });
         var value = await db.ProfileIdentityPreferences.SingleOrDefaultAsync(x => x.ProfileId == profile.Id, cancellationToken);
-        if (value is null) { value = new ProfileIdentityPreference { ProfileId = profile.Id }; db.ProfileIdentityPreferences.Add(value); }
-        value.ReligionId=request.ReligionId; value.CommunityId=request.CommunityId; value.CasteId=request.CasteId; value.Importance=request.Importance;
-        await db.SaveChangesAsync(cancellationToken); return Ok(new { message = "Identity preferences saved." });
+        if (value is null)
+        {
+            value = new ProfileIdentityPreference { ProfileId = profile.Id };
+            db.ProfileIdentityPreferences.Add(value);
+        }
+        value.ReligionId = request.ReligionId;
+        value.CommunityId = request.CommunityId;
+        value.CasteId = request.CasteId;
+        value.Importance = request.Importance;
+        await db.SaveChangesAsync(cancellationToken);
+        return Ok(new { message = "Identity preferences saved." });
     }
 
-    [HttpPut("me") ]
+    [HttpPut("me")]
     public async Task<IActionResult> UpsertMine(ProfileRequest request, CancellationToken cancellationToken)
     {
         var userId = GetUserId();
         if (request.DisplayName?.Trim().Length is not > 0 or > 120)
             return BadRequest(new { message = "Display name is required and must be 120 characters or fewer." });
-
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
-        if (request.DateOfBirth > today.AddYears(-18))
-            return BadRequest(new { message = "MilanSetu profiles must be for adults aged 18 or above." });
-        if (request.DateOfBirth < today.AddYears(-100))
-            return BadRequest(new { message = "Please provide a valid date of birth." });
-        if (!Enum.IsDefined(request.Gender))
-            return BadRequest(new { message = "A valid gender is required." });
-        if (!Enum.IsDefined(request.AccountType))
-            return BadRequest(new { message = "A valid account type is required." });
+        if (request.DateOfBirth > today.AddYears(-18)) return BadRequest(new { message = "MilanSetu profiles must be for adults aged 18 or above." });
+        if (request.DateOfBirth < today.AddYears(-100)) return BadRequest(new { message = "Please provide a valid date of birth." });
+        if (!Enum.IsDefined(request.Gender)) return BadRequest(new { message = "A valid gender is required." });
+        if (!Enum.IsDefined(request.AccountType)) return BadRequest(new { message = "A valid account type is required." });
 
         var profile = await db.Profiles.SingleOrDefaultAsync(x => x.UserId == userId, cancellationToken);
         if (profile is null)
@@ -63,7 +64,6 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
             profile = new Profile { Id = Guid.NewGuid(), UserId = userId, CreatedAt = DateTimeOffset.UtcNow };
             db.Profiles.Add(profile);
         }
-
         profile.DisplayName = request.DisplayName.Trim();
         profile.DateOfBirth = request.DateOfBirth;
         profile.Gender = request.Gender;
@@ -84,7 +84,6 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
         preference.MaxAge = request.MaxPartnerAge;
         preference.RelocationOpen = request.RelocationOpen;
         preference.Importance = Clean(request.PreferenceImportance, 20) ?? "Flexible";
-
         await db.SaveChangesAsync(cancellationToken);
         return Ok(new { profileId = profile.Id, message = "Profile saved." });
     }
@@ -113,26 +112,18 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
         profile.MotherTongue,
         profile.Bio,
         profile.Visibility,
-        locations = profile.Locations.Select(x => new
-        {
-            x.LocationId,
-            x.IsPrimary,
-            x.Location.CountryCode,
-            x.Location.StateName,
-            x.Location.DistrictName,
-            x.Location.CityName
-        }),
-        preferences = profile.Preferences.Select(x => new
-        {
-            x.MinAge,
-            x.MaxAge,
-            x.RelocationOpen,
-            x.Importance
-        })
+        locations = profile.Locations.Select(x => new { x.LocationId, x.IsPrimary, x.Location.CountryCode, x.Location.StateName, x.Location.DistrictName, x.Location.CityName }),
+        preferences = profile.Preferences.Select(x => new { x.MinAge, x.MaxAge, x.RelocationOpen, x.Importance })
     };
 }
 
-public sealed record ProfileIdentityRequest(\n    int? ReligionId, int? CommunityId, int? CasteId, PreferenceImportance Importance);\n\npublic sealed record ProfileRequest(
+public sealed record ProfileIdentityRequest(
+    int? ReligionId,
+    int? CommunityId,
+    int? CasteId,
+    PreferenceImportance Importance);
+
+public sealed record ProfileRequest(
     string? DisplayName,
     DateOnly DateOfBirth,
     Gender Gender,
