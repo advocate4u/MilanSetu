@@ -5,80 +5,21 @@ namespace MilanSetu.Api.Data;
 
 public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : DbContext(options)
 {
-    public DbSet<User> Users => Set<User>();
-    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
-    public DbSet<Profile> Profiles => Set<Profile>();
-    public DbSet<Location> Locations => Set<Location>();
-    public DbSet<ProfileLocation> ProfileLocations => Set<ProfileLocation>();
-    public DbSet<ProfilePreference> ProfilePreferences => Set<ProfilePreference>();
-    public DbSet<Education> Educations => Set<Education>();
-    public DbSet<Employment> Employments => Set<Employment>();
-    public DbSet<FamilyDetails> FamilyDetails => Set<FamilyDetails>();
-    public DbSet<Lifestyle> Lifestyles => Set<Lifestyle>();
-    public DbSet<Religion> Religions => Set<Religion>();
-    public DbSet<Community> Communities => Set<Community>();
-    public DbSet<Caste> Castes => Set<Caste>();
-    public DbSet<ProfileIdentityPreference> ProfileIdentityPreferences => Set<ProfileIdentityPreference>();
+    public DbSet<User> Users => Set<User>(); public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>(); public DbSet<Profile> Profiles => Set<Profile>(); public DbSet<Location> Locations => Set<Location>(); public DbSet<ProfileLocation> ProfileLocations => Set<ProfileLocation>(); public DbSet<ProfilePreference> ProfilePreferences => Set<ProfilePreference>(); public DbSet<Education> Educations => Set<Education>(); public DbSet<Employment> Employments => Set<Employment>(); public DbSet<FamilyDetails> FamilyDetails => Set<FamilyDetails>(); public DbSet<Lifestyle> Lifestyles => Set<Lifestyle>(); public DbSet<Religion> Religions => Set<Religion>(); public DbSet<Community> Communities => Set<Community>(); public DbSet<Caste> Castes => Set<Caste>(); public DbSet<ProfileIdentityPreference> ProfileIdentityPreferences => Set<ProfileIdentityPreference>(); public DbSet<Interest> Interests => Set<Interest>(); public DbSet<Connection> Connections => Set<Connection>(); public DbSet<Block> Blocks => Set<Block>();
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    protected override void OnModelCreating(ModelBuilder m)
     {
-        modelBuilder.Entity<User>(entity =>
-        {
-            entity.ToTable("users"); entity.HasKey(x => x.Id);
-            entity.Property(x => x.Email).HasMaxLength(320).IsRequired(); entity.HasIndex(x => x.Email).IsUnique();
-            entity.Property(x => x.PhoneNumber).HasMaxLength(32); entity.HasIndex(x => x.PhoneNumber).IsUnique();
-            entity.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
-            entity.HasOne(x => x.Profile).WithOne(x => x.User).HasForeignKey<Profile>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-        });
-        modelBuilder.Entity<RefreshToken>(entity =>
-        {
-            entity.ToTable("refresh_tokens"); entity.HasKey(x => x.Id); entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
-            entity.HasIndex(x => x.TokenHash).IsUnique(); entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
-            entity.HasOne(x => x.User).WithMany(x => x.RefreshTokens).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
-        });
-        modelBuilder.Entity<Profile>(entity =>
-        {
-            entity.ToTable("profiles"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.UserId).IsUnique();
-            entity.Property(x => x.DisplayName).HasMaxLength(120).IsRequired(); entity.Property(x => x.MaritalStatus).HasMaxLength(40);
-            entity.Property(x => x.MotherTongue).HasMaxLength(80); entity.Property(x => x.Bio).HasMaxLength(2000);
-            entity.Property(x => x.Gender).HasConversion<string>().HasMaxLength(20); entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20);
-            entity.Property(x => x.Visibility).HasConversion<string>().HasMaxLength(20);
-        });
-        modelBuilder.Entity<Location>(entity =>
-        {
-            entity.ToTable("locations"); entity.HasKey(x => x.Id); entity.Property(x => x.CountryCode).HasMaxLength(2).IsRequired();
-            entity.Property(x => x.StateName).HasMaxLength(120).IsRequired(); entity.Property(x => x.DistrictName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.CityName).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CountryCode, x.StateName, x.DistrictName, x.CityName }).IsUnique();
-        });
-        modelBuilder.Entity<ProfileLocation>(entity =>
-        {
-            entity.ToTable("profile_locations"); entity.HasKey(x => new { x.ProfileId, x.LocationId });
-            entity.HasOne(x => x.Profile).WithMany(x => x.Locations).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Location).WithMany(x => x.Profiles).HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Restrict);
-        });
-        modelBuilder.Entity<ProfilePreference>(entity =>
-        {
-            entity.ToTable("profile_preferences"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.ProfileId).IsUnique();
-            entity.Property(x => x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.HasOne(x => x.Profile).WithMany(x => x.Preferences).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
-            entity.ToTable(t => t.HasCheckConstraint("ck_profile_preferences_age_range", "min_age IS NULL OR max_age IS NULL OR min_age <= max_age"));
-        });
-        modelBuilder.Entity<Education>(entity => { entity.ToTable("educations"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Education).HasForeignKey<Education>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
-        modelBuilder.Entity<Employment>(entity => { entity.ToTable("employments"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Employment).HasForeignKey<Employment>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
-        modelBuilder.Entity<FamilyDetails>(entity => { entity.ToTable("family_details"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.FamilyDetails).HasForeignKey<FamilyDetails>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
-        modelBuilder.Entity<Lifestyle>(entity => { entity.ToTable("lifestyles"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Lifestyle).HasForeignKey<Lifestyle>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
-
-        modelBuilder.Entity<Religion>(entity => { entity.ToTable("religions"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
-        modelBuilder.Entity<Community>(entity => { entity.ToTable("communities"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.ReligionId, x.Name }).IsUnique(); entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict); });
-        modelBuilder.Entity<Caste>(entity => { entity.ToTable("castes"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CommunityId, x.Name }).IsUnique(); entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict); });
-        modelBuilder.Entity<ProfileIdentityPreference>(entity =>
-        {
-            entity.ToTable("profile_identity_preferences"); entity.HasKey(x => x.ProfileId);
-            entity.Property(x => x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();
-            entity.HasOne(x => x.Profile).WithOne().HasForeignKey<ProfileIdentityPreference>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
-            entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict);
-            entity.HasOne(x => x.Caste).WithMany().HasForeignKey(x => x.CasteId).OnDelete(DeleteBehavior.Restrict);
-        });
+        m.Entity<User>(e=>{e.ToTable("users");e.HasKey(x=>x.Id);e.Property(x=>x.Email).HasMaxLength(320).IsRequired();e.HasIndex(x=>x.Email).IsUnique();e.Property(x=>x.PhoneNumber).HasMaxLength(32);e.HasIndex(x=>x.PhoneNumber).IsUnique();e.Property(x=>x.PasswordHash).HasMaxLength(500).IsRequired();e.HasOne(x=>x.Profile).WithOne(x=>x.User).HasForeignKey<Profile>(x=>x.UserId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<RefreshToken>(e=>{e.ToTable("refresh_tokens");e.HasKey(x=>x.Id);e.Property(x=>x.TokenHash).HasMaxLength(64).IsRequired();e.HasIndex(x=>x.TokenHash).IsUnique();e.HasIndex(x=>new{x.UserId,x.ExpiresAt});e.HasOne(x=>x.User).WithMany(x=>x.RefreshTokens).HasForeignKey(x=>x.UserId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<Profile>(e=>{e.ToTable("profiles");e.HasKey(x=>x.Id);e.HasIndex(x=>x.UserId).IsUnique();e.Property(x=>x.DisplayName).HasMaxLength(120).IsRequired();e.Property(x=>x.MaritalStatus).HasMaxLength(40);e.Property(x=>x.MotherTongue).HasMaxLength(80);e.Property(x=>x.Bio).HasMaxLength(2000);e.Property(x=>x.Gender).HasConversion<string>().HasMaxLength(20);e.Property(x=>x.AccountType).HasConversion<string>().HasMaxLength(20);e.Property(x=>x.Visibility).HasConversion<string>().HasMaxLength(20);});
+        m.Entity<Location>(e=>{e.ToTable("locations");e.HasKey(x=>x.Id);e.Property(x=>x.CountryCode).HasMaxLength(2).IsRequired();e.Property(x=>x.StateName).HasMaxLength(120).IsRequired();e.Property(x=>x.DistrictName).HasMaxLength(120).IsRequired();e.Property(x=>x.CityName).HasMaxLength(120).IsRequired();e.HasIndex(x=>new{x.CountryCode,x.StateName,x.DistrictName,x.CityName}).IsUnique();});
+        m.Entity<ProfileLocation>(e=>{e.ToTable("profile_locations");e.HasKey(x=>new{x.ProfileId,x.LocationId});e.HasOne(x=>x.Profile).WithMany(x=>x.Locations).HasForeignKey(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.Location).WithMany(x=>x.Profiles).HasForeignKey(x=>x.LocationId).OnDelete(DeleteBehavior.Restrict);});
+        m.Entity<ProfilePreference>(e=>{e.ToTable("profile_preferences");e.HasKey(x=>x.Id);e.HasIndex(x=>x.ProfileId).IsUnique();e.Property(x=>x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();e.HasOne(x=>x.Profile).WithMany(x=>x.Preferences).HasForeignKey(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<Education>(e=>{e.ToTable("educations");e.HasKey(x=>x.ProfileId);e.HasOne(x=>x.Profile).WithOne(x=>x.Education).HasForeignKey<Education>(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);}); m.Entity<Employment>(e=>{e.ToTable("employments");e.HasKey(x=>x.ProfileId);e.HasOne(x=>x.Profile).WithOne(x=>x.Employment).HasForeignKey<Employment>(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);}); m.Entity<FamilyDetails>(e=>{e.ToTable("family_details");e.HasKey(x=>x.ProfileId);e.HasOne(x=>x.Profile).WithOne(x=>x.FamilyDetails).HasForeignKey<FamilyDetails>(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);}); m.Entity<Lifestyle>(e=>{e.ToTable("lifestyles");e.HasKey(x=>x.ProfileId);e.HasOne(x=>x.Profile).WithOne(x=>x.Lifestyle).HasForeignKey<Lifestyle>(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<Religion>(e=>{e.ToTable("religions");e.HasKey(x=>x.Id);e.Property(x=>x.Name).HasMaxLength(120).IsRequired();e.HasIndex(x=>x.Name).IsUnique();}); m.Entity<Community>(e=>{e.ToTable("communities");e.HasKey(x=>x.Id);e.Property(x=>x.Name).HasMaxLength(120).IsRequired();e.HasIndex(x=>new{x.ReligionId,x.Name}).IsUnique();e.HasOne(x=>x.Religion).WithMany().HasForeignKey(x=>x.ReligionId).OnDelete(DeleteBehavior.Restrict);}); m.Entity<Caste>(e=>{e.ToTable("castes");e.HasKey(x=>x.Id);e.Property(x=>x.Name).HasMaxLength(120).IsRequired();e.HasIndex(x=>new{x.CommunityId,x.Name}).IsUnique();e.HasOne(x=>x.Community).WithMany().HasForeignKey(x=>x.CommunityId).OnDelete(DeleteBehavior.Restrict);});
+        m.Entity<ProfileIdentityPreference>(e=>{e.ToTable("profile_identity_preferences");e.HasKey(x=>x.ProfileId);e.Property(x=>x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();e.HasOne(x=>x.Profile).WithOne().HasForeignKey<ProfileIdentityPreference>(x=>x.ProfileId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.Religion).WithMany().HasForeignKey(x=>x.ReligionId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Community).WithMany().HasForeignKey(x=>x.CommunityId).OnDelete(DeleteBehavior.Restrict);e.HasOne(x=>x.Caste).WithMany().HasForeignKey(x=>x.CasteId).OnDelete(DeleteBehavior.Restrict);});
+        m.Entity<Interest>(e=>{e.ToTable("interests");e.HasKey(x=>x.Id);e.Property(x=>x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();e.HasIndex(x=>new{x.SenderUserId,x.ReceiverUserId}).IsUnique();e.HasOne(x=>x.Sender).WithMany().HasForeignKey(x=>x.SenderUserId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.Receiver).WithMany().HasForeignKey(x=>x.ReceiverUserId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<Connection>(e=>{e.ToTable("connections");e.HasKey(x=>x.Id);e.HasIndex(x=>new{x.UserAId,x.UserBId}).IsUnique();e.HasOne(x=>x.UserA).WithMany().HasForeignKey(x=>x.UserAId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.UserB).WithMany().HasForeignKey(x=>x.UserBId).OnDelete(DeleteBehavior.Cascade);});
+        m.Entity<Block>(e=>{e.ToTable("blocks");e.HasKey(x=>x.Id);e.HasIndex(x=>new{x.BlockerUserId,x.BlockedUserId}).IsUnique();e.HasOne(x=>x.Blocker).WithMany().HasForeignKey(x=>x.BlockerUserId).OnDelete(DeleteBehavior.Cascade);e.HasOne(x=>x.Blocked).WithMany().HasForeignKey(x=>x.BlockedUserId).OnDelete(DeleteBehavior.Cascade);});
     }
 }
