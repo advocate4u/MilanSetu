@@ -11,78 +11,72 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Location> Locations => Set<Location>();
     public DbSet<ProfileLocation> ProfileLocations => Set<ProfileLocation>();
     public DbSet<ProfilePreference> ProfilePreferences => Set<ProfilePreference>();
+    public DbSet<Education> Educations => Set<Education>();
+    public DbSet<Employment> Employments => Set<Employment>();
+    public DbSet<FamilyDetails> FamilyDetails => Set<FamilyDetails>();
+    public DbSet<Lifestyle> Lifestyles => Set<Lifestyle>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("users");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.Email).HasMaxLength(320).IsRequired();
-            entity.HasIndex(x => x.Email).IsUnique();
-            entity.Property(x => x.PhoneNumber).HasMaxLength(32);
-            entity.HasIndex(x => x.PhoneNumber).IsUnique();
+            entity.ToTable("users"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Email).HasMaxLength(320).IsRequired(); entity.HasIndex(x => x.Email).IsUnique();
+            entity.Property(x => x.PhoneNumber).HasMaxLength(32); entity.HasIndex(x => x.PhoneNumber).IsUnique();
             entity.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired();
-            entity.HasOne(x => x.Profile)
-                .WithOne(x => x.User)
-                .HasForeignKey<Profile>(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Profile).WithOne(x => x.User).HasForeignKey<Profile>(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
-
         modelBuilder.Entity<RefreshToken>(entity =>
         {
-            entity.ToTable("refresh_tokens");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
-            entity.HasIndex(x => x.TokenHash).IsUnique();
-            entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
-            entity.HasOne(x => x.User)
-                .WithMany(x => x.RefreshTokens)
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            entity.ToTable("refresh_tokens"); entity.HasKey(x => x.Id); entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => x.TokenHash).IsUnique(); entity.HasIndex(x => new { x.UserId, x.ExpiresAt });
+            entity.HasOne(x => x.User).WithMany(x => x.RefreshTokens).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
-
         modelBuilder.Entity<Profile>(entity =>
         {
-            entity.ToTable("profiles");
-            entity.HasKey(x => x.Id);
-            entity.HasIndex(x => x.UserId).IsUnique();
-            entity.Property(x => x.DisplayName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.MaritalStatus).HasMaxLength(40);
-            entity.Property(x => x.MotherTongue).HasMaxLength(80);
-            entity.Property(x => x.Bio).HasMaxLength(2000);
-            entity.Property(x => x.Gender).HasConversion<string>().HasMaxLength(20);
-            entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20);
+            entity.ToTable("profiles"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.UserId).IsUnique();
+            entity.Property(x => x.DisplayName).HasMaxLength(120).IsRequired(); entity.Property(x => x.MaritalStatus).HasMaxLength(40);
+            entity.Property(x => x.MotherTongue).HasMaxLength(80); entity.Property(x => x.Bio).HasMaxLength(2000);
+            entity.Property(x => x.Gender).HasConversion<string>().HasMaxLength(20); entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20);
             entity.Property(x => x.Visibility).HasConversion<string>().HasMaxLength(20);
         });
-
         modelBuilder.Entity<Location>(entity =>
         {
-            entity.ToTable("locations");
-            entity.HasKey(x => x.Id);
-            entity.Property(x => x.CountryCode).HasMaxLength(2).IsRequired();
-            entity.Property(x => x.StateName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.DistrictName).HasMaxLength(120).IsRequired();
-            entity.Property(x => x.CityName).HasMaxLength(120).IsRequired();
-            entity.HasIndex(x => new { x.CountryCode, x.StateName, x.DistrictName, x.CityName }).IsUnique();
+            entity.ToTable("locations"); entity.HasKey(x => x.Id); entity.Property(x => x.CountryCode).HasMaxLength(2).IsRequired();
+            entity.Property(x => x.StateName).HasMaxLength(120).IsRequired(); entity.Property(x => x.DistrictName).HasMaxLength(120).IsRequired();
+            entity.Property(x => x.CityName).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CountryCode, x.StateName, x.DistrictName, x.CityName }).IsUnique();
         });
-
         modelBuilder.Entity<ProfileLocation>(entity =>
         {
-            entity.ToTable("profile_locations");
-            entity.HasKey(x => new { x.ProfileId, x.LocationId });
+            entity.ToTable("profile_locations"); entity.HasKey(x => new { x.ProfileId, x.LocationId });
             entity.HasOne(x => x.Profile).WithMany(x => x.Locations).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Location).WithMany(x => x.Profiles).HasForeignKey(x => x.LocationId).OnDelete(DeleteBehavior.Restrict);
         });
-
         modelBuilder.Entity<ProfilePreference>(entity =>
         {
-            entity.ToTable("profile_preferences");
-            entity.HasKey(x => x.Id);
-            entity.HasIndex(x => x.ProfileId).IsUnique();
-            entity.Property(x => x.Importance).HasMaxLength(20).IsRequired();
+            entity.ToTable("profile_preferences"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.ProfileId).IsUnique();
+            entity.Property(x => x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.HasOne(x => x.Profile).WithMany(x => x.Preferences).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
             entity.ToTable(t => t.HasCheckConstraint("ck_profile_preferences_age_range", "min_age IS NULL OR max_age IS NULL OR min_age <= max_age"));
         });
+        ConfigureOneToOne<Education>(modelBuilder, "educations", x => x.ProfileId);
+        ConfigureOneToOne<Employment>(modelBuilder, "employments", x => x.ProfileId);
+        ConfigureOneToOne<FamilyDetails>(modelBuilder, "family_details", x => x.ProfileId);
+        ConfigureOneToOne<Lifestyle>(modelBuilder, "lifestyles", x => x.ProfileId);
     }
+
+    private static void ConfigureOneToOne<TEntity>(ModelBuilder modelBuilder, string table, Func<TEntity, Guid> profileId) where TEntity : class
+    {
+        var entity = modelBuilder.Entity<TEntity>(); entity.ToTable(table); entity.HasKey(profileId);
+        entity.HasOne<Profile>().WithOne(GetNavigation<TEntity>()).HasForeignKey<TEntity>(profileId).OnDelete(DeleteBehavior.Cascade);
+    }
+
+    private static string GetNavigation<TEntity>() => typeof(TEntity) switch
+    {
+        var t when t == typeof(Education) => nameof(Profile.Education),
+        var t when t == typeof(Employment) => nameof(Profile.Employment),
+        var t when t == typeof(FamilyDetails) => nameof(Profile.FamilyDetails),
+        var t when t == typeof(Lifestyle) => nameof(Profile.Lifestyle),
+        _ => throw new InvalidOperationException()
+    };
 }
