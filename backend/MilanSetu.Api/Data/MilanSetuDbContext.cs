@@ -19,6 +19,11 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Community> Communities => Set<Community>();
     public DbSet<Caste> Castes => Set<Caste>();
     public DbSet<ProfileIdentityPreference> ProfileIdentityPreferences => Set<ProfileIdentityPreference>();
+    public DbSet<Interest> Interests => Set<Interest>();
+    public DbSet<Connection> Connections => Set<Connection>();
+    public DbSet<Block> Blocks => Set<Block>();
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<Message> Messages => Set<Message>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,7 +72,6 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
         modelBuilder.Entity<Employment>(entity => { entity.ToTable("employments"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Employment).HasForeignKey<Employment>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<FamilyDetails>(entity => { entity.ToTable("family_details"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.FamilyDetails).HasForeignKey<FamilyDetails>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<Lifestyle>(entity => { entity.ToTable("lifestyles"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Lifestyle).HasForeignKey<Lifestyle>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
-
         modelBuilder.Entity<Religion>(entity => { entity.ToTable("religions"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
         modelBuilder.Entity<Community>(entity => { entity.ToTable("communities"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.ReligionId, x.Name }).IsUnique(); entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict); });
         modelBuilder.Entity<Caste>(entity => { entity.ToTable("castes"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CommunityId, x.Name }).IsUnique(); entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict); });
@@ -79,6 +83,44 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.Caste).WithMany().HasForeignKey(x => x.CasteId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<Interest>(entity =>
+        {
+            entity.ToTable("interests"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.HasIndex(x => new { x.SenderUserId, x.ReceiverUserId }).IsUnique();
+            entity.HasIndex(x => new { x.ReceiverUserId, x.Status });
+            entity.HasOne(x => x.Sender).WithMany().HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Receiver).WithMany().HasForeignKey(x => x.ReceiverUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Connection>(entity =>
+        {
+            entity.ToTable("connections"); entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.UserAId, x.UserBId }).IsUnique();
+            entity.HasOne(x => x.UserA).WithMany().HasForeignKey(x => x.UserAId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.UserB).WithMany().HasForeignKey(x => x.UserBId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Block>(entity =>
+        {
+            entity.ToTable("blocks"); entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.BlockerUserId, x.BlockedUserId }).IsUnique();
+            entity.HasOne(x => x.Blocker).WithMany().HasForeignKey(x => x.BlockerUserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Blocked).WithMany().HasForeignKey(x => x.BlockedUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Conversation>(entity =>
+        {
+            entity.ToTable("conversations"); entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.UserAId, x.UserBId }).IsUnique();
+            entity.HasOne(x => x.UserA).WithMany().HasForeignKey(x => x.UserAId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.UserB).WithMany().HasForeignKey(x => x.UserBId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<Message>(entity =>
+        {
+            entity.ToTable("messages"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Body).HasMaxLength(4000).IsRequired();
+            entity.HasIndex(x => new { x.ConversationId, x.CreatedAt });
+            entity.HasOne(x => x.Conversation).WithMany(x => x.Messages).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Sender).WithMany().HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
