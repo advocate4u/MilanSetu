@@ -1,0 +1,1 @@
+Messaging foundation: mutual-connection chat flow is demonstrated in the web demo. Real messaging APIs are available in the backend for connected users only.
