@@ -22,7 +22,7 @@ function App() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [busy, setBusy] = useState(false)\n  const [showDetails, setShowDetails] = useState(false)
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
