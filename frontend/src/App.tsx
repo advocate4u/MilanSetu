@@ -1,13 +1,18 @@
-import { FormEvent, useState } from 'react'
+import { FormEvent, useMemo, useState } from 'react'
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7001'
 type AuthMode = 'login' | 'register'
+type DemoProfile = { id: number; name: string; age: number; city: string; profession: string; education: string; bio: string; tags: string[] }
+
+const demoProfiles: DemoProfile[] = [
+  { id: 1, name: 'Asha', age: 29, city: 'Delhi', profession: 'Software Engineer', education: 'B.Tech', bio: 'Enjoys reading, travel and building a calm family life.', tags: ['Vegetarian', 'Hindi', 'Travel'] },
+  { id: 2, name: 'Rahul', age: 31, city: 'Gurugram', profession: 'Product Manager', education: 'MBA', bio: 'Values open communication, family time and a balanced career.', tags: ['Fitness', 'Hindi', 'Music'] },
+  { id: 3, name: 'Neha', age: 28, city: 'Chandigarh', profession: 'Doctor', education: 'MBBS', bio: 'Warm, independent and looking for a respectful partnership.', tags: ['Punjabi', 'Reading', 'Pets'] },
+  { id: 4, name: 'Arjun', age: 30, city: 'Noida', profession: 'Architect', education: 'B.Arch', bio: 'Creative professional who enjoys design, food and weekend trips.', tags: ['Travel', 'Hindi', 'Design'] },
+]
 
 async function submitAuth(mode: AuthMode, email: string, password: string) {
-  const response = await fetch(`${apiBaseUrl}/api/auth/${mode}`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-    body: JSON.stringify({ email, password }),
-  })
+  const response = await fetch(`${apiBaseUrl}/api/auth/${mode}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password }) })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.message ?? 'Unable to complete the request.')
   return data
@@ -15,51 +20,29 @@ async function submitAuth(mode: AuthMode, email: string, password: string) {
 
 function App() {
   const [mode, setMode] = useState<AuthMode>('register')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [message, setMessage] = useState('')
-  const [busy, setBusy] = useState(false)
+  const [email, setEmail] = useState(''); const [password, setPassword] = useState('')
+  const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false)
+  const [demo, setDemo] = useState(false); const [city, setCity] = useState('All cities'); const [minAge, setMinAge] = useState(18); const [selected, setSelected] = useState<DemoProfile | null>(null); const [interest, setInterest] = useState('')
+
+  const filtered = useMemo(() => demoProfiles.filter(p => (city === 'All cities' || p.city === city) && p.age >= minAge), [city, minAge])
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage('')
-    try {
-      const result = await submitAuth(mode, email, password)
-      if (mode === 'login') sessionStorage.setItem('milansetu_access_token', result.accessToken)
-      setMessage(mode === 'register' ? 'Account created. You can now log in.' : 'Signed in successfully.')
-      if (mode === 'register') setMode('login')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Something went wrong.') }
+    try { const result = await submitAuth(mode, email, password); if (mode === 'login') sessionStorage.setItem('milansetu_access_token', result.accessToken); setMessage(mode === 'register' ? 'Account created. You can now log in.' : 'Signed in successfully.'); if (mode === 'register') setMode('login') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Something went wrong.') }
     finally { setBusy(false) }
   }
 
   return <div className="app-shell">
-    <header className="topbar">
-      <a className="brand" href="/" aria-label="MilanSetu home"><span className="brand-mark">♥</span><span>MilanSetu</span></a>
-      <nav className="nav-links" aria-label="Main navigation">
-        <a href="#how-it-works">How it works</a><a href="#safety">Safety</a><a href="#about">About</a>
-        <button className="login-button" onClick={() => setMode('login')}>Log in</button>
-        <button className="primary-button small" onClick={() => setMode('register')}>Create profile</button>
-      </nav>
-    </header>
+    <style>{` .demo-panel{margin:40px auto;max-width:1180px;padding:28px;border:1px solid #eadfdb;border-radius:24px;background:#fff}.demo-head{display:flex;justify-content:space-between;gap:20px;align-items:end;margin-bottom:22px}.demo-filters{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:24px}.demo-filters label{display:flex;flex-direction:column;gap:6px;font-size:13px}.demo-filters select{padding:10px 12px;border:1px solid #d8cbc6;border-radius:10px;background:#fff}.demo-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(235px,1fr));gap:16px}.demo-card{padding:20px;border:1px solid #eee3df;border-radius:18px;background:#fff}.demo-avatar{width:58px;height:58px;border-radius:50%;display:grid;place-items:center;background:#f4e5e1;font-size:22px;font-weight:700;margin-bottom:12px}.demo-tags{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0}.demo-tag{padding:5px 9px;border-radius:999px;background:#f7f1ef;font-size:12px}.demo-actions{display:flex;gap:8px}.demo-actions button{flex:1}.demo-note{font-size:13px;opacity:.75}.demo-detail{margin-top:20px;padding:20px;border-radius:16px;background:#faf6f4}.try-demo{margin-top:18px}.demo-empty{text-align:center;padding:35px}.demo-panel h2{margin:0 0 8px}.demo-panel h3{margin:0 0 6px}@media(max-width:700px){.demo-panel{margin:24px 12px;padding:18px}.demo-head{display:block}}`}</style>
+    <header className="topbar"><a className="brand" href="/" aria-label="MilanSetu home"><span className="brand-mark">♥</span><span>MilanSetu</span></a><nav className="nav-links" aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="#safety">Safety</a><a href="#about">About</a><button className="login-button" onClick={() => setMode('login')}>Log in</button><button className="primary-button small" onClick={() => setMode('register')}>Create profile</button></nav></header>
     <main>
-      <section className="hero">
-        <div className="hero-copy"><p className="eyebrow">FREE • PRIVATE • MEANINGFUL</p><h1>Find someone to build a life with.</h1>
-          <p className="hero-text">MilanSetu is a free, privacy-first matrimonial platform built around compatibility, trust and meaningful connections.</p>
-          <div className="hero-actions"><button className="primary-button" onClick={() => setMode('register')}>Create your free profile</button><button className="secondary-button" onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}>Explore how it works</button></div>
-          <p className="no-paywall">No subscription • No premium profile • No paid messaging</p>
-        </div>
-        <div className="hero-card"><div className="heart-orbit">♥</div><h2>A better way to meet.</h2>
-          <div className="value-row"><span>✓</span><div><strong>Compatibility first</strong><small>Preferences you control.</small></div></div>
-          <div className="value-row"><span>✓</span><div><strong>Privacy by design</strong><small>Your contact details stay private.</small></div></div>
-          <div className="value-row"><span>✓</span><div><strong>Safety built in</strong><small>Report, block and moderation tools.</small></div></div>
-        </div>
-      </section>
-      <section className="auth-panel" aria-label="Account access"><div className="auth-copy"><p className="eyebrow">YOUR ACCOUNT</p><h2>{mode === 'register' ? 'Create a free account' : 'Welcome back'}</h2><p>Your refresh session stays in a protected HttpOnly cookie. Your password is never stored in the browser.</p></div>
-        <form onSubmit={onSubmit} className="auth-form"><label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required maxLength={320}/></label><label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required minLength={12}/></label><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}</button>{message && <p className="auth-message" role="status">{message}</p>}<button type="button" className="text-button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setMessage('') }}>{mode === 'register' ? 'Already have an account? Log in' : 'Need an account? Create one'}</button></form>
-      </section>
+      <section className="hero"><div className="hero-copy"><p className="eyebrow">FREE • PRIVATE • MEANINGFUL</p><h1>Find someone to build a life with.</h1><p className="hero-text">MilanSetu is a free, privacy-first matrimonial platform built around compatibility, trust and meaningful connections.</p><div className="hero-actions"><button className="primary-button" onClick={() => setMode('register')}>Create your free profile</button><button className="secondary-button" onClick={() => setDemo(true)}>Try the demo</button></div><p className="no-paywall">No subscription • No premium profile • No paid messaging</p></div><div className="hero-card"><div className="heart-orbit">♥</div><h2>A better way to meet.</h2><div className="value-row"><span>✓</span><div><strong>Compatibility first</strong><small>Preferences you control.</small></div></div><div className="value-row"><span>✓</span><div><strong>Privacy by design</strong><small>Your contact details stay private.</small></div></div><div className="value-row"><span>✓</span><div><strong>Safety built in</strong><small>Report, block and moderation tools.</small></div></div></div></section>
+      {demo && <section className="demo-panel" aria-label="MilanSetu interactive demo"><div className="demo-head"><div><p className="eyebrow">INTERACTIVE DEMO</p><h2>Discover meaningful profiles</h2><p className="demo-note">These are fictional demo profiles. No real user data is used here.</p></div><button className="secondary-button" onClick={() => setDemo(false)}>Close demo</button></div><div className="demo-filters"><label>City<select value={city} onChange={e => setCity(e.target.value)}><option>All cities</option><option>Delhi</option><option>Gurugram</option><option>Chandigarh</option><option>Noida</option></select></label><label>Minimum age<select value={minAge} onChange={e => setMinAge(Number(e.target.value))}><option value={18}>18+</option><option value={25}>25+</option><option value={28}>28+</option><option value={30}>30+</option></select></label></div>{filtered.length === 0 ? <div className="demo-empty">No demo profiles match these filters.</div> : <div className="demo-grid">{filtered.map(p => <article className="demo-card" key={p.id}><div className="demo-avatar" aria-hidden="true">{p.name[0]}</div><h3>{p.name}, {p.age}</h3><p>{p.city} • {p.profession}</p><p><strong>{p.education}</strong></p><div className="demo-tags">{p.tags.map(t => <span className="demo-tag" key={t}>{t}</span>)}</div><div className="demo-actions"><button className="secondary-button" onClick={() => setSelected(p)}>View profile</button><button className="primary-button" onClick={() => setInterest(`Interest sent to ${p.name} in demo mode.`)}>Interested</button></div></article>)}</div>}{selected && <div className="demo-detail"><button className="text-button" onClick={() => setSelected(null)}>← Back to profiles</button><h3>{selected.name}, {selected.age}</h3><p>{selected.city} • {selected.profession} • {selected.education}</p><p>{selected.bio}</p><p className="demo-note">In the real application, contact details remain private until a mutual connection is established.</p></div>}{interest && <div className="demo-detail" role="status">{interest}</div>}</section>}
+      <section className="auth-panel" aria-label="Account access"><div className="auth-copy"><p className="eyebrow">YOUR ACCOUNT</p><h2>{mode === 'register' ? 'Create a free account' : 'Welcome back'}</h2><p>Your refresh session stays in a protected HttpOnly cookie. Your password is never stored in the browser.</p></div><form onSubmit={onSubmit} className="auth-form"><label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" required maxLength={320}/></label><label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} autoComplete={mode === 'register' ? 'new-password' : 'current-password'} required minLength={12}/></label><button className="primary-button" type="submit" disabled={busy}>{busy ? 'Please wait…' : mode === 'register' ? 'Create account' : 'Log in'}</button>{message && <p className="auth-message" role="status">{message}</p>}<button type="button" className="text-button" onClick={() => { setMode(mode === 'register' ? 'login' : 'register'); setMessage('') }}>{mode === 'register' ? 'Already have an account? Log in' : 'Need an account? Create one'}</button></form></section>
       <section className="principles" id="how-it-works"><div><span>01</span><h3>Tell us about you</h3><p>Build a profile around your values, family, lifestyle and marriage expectations.</p></div><div><span>02</span><h3>Set your preferences</h3><p>Choose what matters to you — from city and language to community and lifestyle.</p></div><div><span>03</span><h3>Connect by mutual choice</h3><p>Express interest, accept, and start a conversation without exposing your phone number.</p></div></section>
       <section className="safety-banner" id="safety"><div><p className="eyebrow">SAFETY FIRST</p><h2>Respectful connections, protected users.</h2></div><p>Abuse detection, reporting, blocking, scam signals and human moderation will be part of the platform from the beginning.</p></section>
-    </main>
-    <footer id="about"><span>♥ MilanSetu</span><span>Built for meaningful connections.</span></footer>
+    </main><footer id="about"><span>♥ MilanSetu</span><span>Built for meaningful connections.</span></footer>
   </div>
 }
 export default App
