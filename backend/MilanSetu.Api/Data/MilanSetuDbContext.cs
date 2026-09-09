@@ -15,6 +15,10 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Employment> Employments => Set<Employment>();
     public DbSet<FamilyDetails> FamilyDetails => Set<FamilyDetails>();
     public DbSet<Lifestyle> Lifestyles => Set<Lifestyle>();
+    public DbSet<Religion> Religions => Set<Religion>();
+    public DbSet<Community> Communities => Set<Community>();
+    public DbSet<Caste> Castes => Set<Caste>();
+    public DbSet<ProfileIdentityPreference> ProfileIdentityPreferences => Set<ProfileIdentityPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -59,24 +63,22 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.HasOne(x => x.Profile).WithMany(x => x.Preferences).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
             entity.ToTable(t => t.HasCheckConstraint("ck_profile_preferences_age_range", "min_age IS NULL OR max_age IS NULL OR min_age <= max_age"));
         });
-        ConfigureOneToOne<Education>(modelBuilder, "educations", x => x.ProfileId);
-        ConfigureOneToOne<Employment>(modelBuilder, "employments", x => x.ProfileId);
-        ConfigureOneToOne<FamilyDetails>(modelBuilder, "family_details", x => x.ProfileId);
-        ConfigureOneToOne<Lifestyle>(modelBuilder, "lifestyles", x => x.ProfileId);
-    }
+        modelBuilder.Entity<Education>(entity => { entity.ToTable("educations"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Education).HasForeignKey<Education>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<Employment>(entity => { entity.ToTable("employments"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Employment).HasForeignKey<Employment>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<FamilyDetails>(entity => { entity.ToTable("family_details"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.FamilyDetails).HasForeignKey<FamilyDetails>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
+        modelBuilder.Entity<Lifestyle>(entity => { entity.ToTable("lifestyles"); entity.HasKey(x => x.ProfileId); entity.HasOne(x => x.Profile).WithOne(x => x.Lifestyle).HasForeignKey<Lifestyle>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade); });
 
-    private static void ConfigureOneToOne<TEntity>(ModelBuilder modelBuilder, string table, Func<TEntity, Guid> profileId) where TEntity : class
-    {
-        var entity = modelBuilder.Entity<TEntity>(); entity.ToTable(table); entity.HasKey(profileId);
-        entity.HasOne<Profile>().WithOne(GetNavigation<TEntity>()).HasForeignKey<TEntity>(profileId).OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<Religion>(entity => { entity.ToTable("religions"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<Community>(entity => { entity.ToTable("communities"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.ReligionId, x.Name }).IsUnique(); entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<Caste>(entity => { entity.ToTable("castes"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CommunityId, x.Name }).IsUnique(); entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<ProfileIdentityPreference>(entity =>
+        {
+            entity.ToTable("profile_identity_preferences"); entity.HasKey(x => x.ProfileId);
+            entity.Property(x => x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.HasOne(x => x.Profile).WithOne().HasForeignKey<ProfileIdentityPreference>(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Religion).WithMany().HasForeignKey(x => x.ReligionId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Community).WithMany().HasForeignKey(x => x.CommunityId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.Caste).WithMany().HasForeignKey(x => x.CasteId).OnDelete(DeleteBehavior.Restrict);
+        });
     }
-
-    private static string GetNavigation<TEntity>() => typeof(TEntity) switch
-    {
-        var t when t == typeof(Education) => nameof(Profile.Education),
-        var t when t == typeof(Employment) => nameof(Profile.Employment),
-        var t when t == typeof(FamilyDetails) => nameof(Profile.FamilyDetails),
-        var t when t == typeof(Lifestyle) => nameof(Profile.Lifestyle),
-        _ => throw new InvalidOperationException()
-    };
 }
