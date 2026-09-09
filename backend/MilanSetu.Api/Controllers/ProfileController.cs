@@ -36,6 +36,27 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
         return Ok(new { message = "Identity preferences saved." });
     }
 
+    [HttpPut("me/location")]
+    public async Task<IActionResult> UpdateLocation(LocationRequest request, CancellationToken ct)
+    {
+        var userId=GetUserId(); var profile=await db.Profiles.SingleOrDefaultAsync(x=>x.UserId==userId,ct); if(profile is null)return NotFound(new{message="Create your profile first."});
+        var location=await db.Locations.FindAsync(new object?[]{request.LocationId},ct); if(location is null)return BadRequest(new{message="Invalid location."});
+        var links=await db.ProfileLocations.Where(x=>x.ProfileId==profile.Id).ToListAsync(ct); foreach(var link in links) link.IsPrimary=false;
+        var existing=links.SingleOrDefault(x=>x.LocationId==location.Id); if(existing is null) db.ProfileLocations.Add(new ProfileLocation{ProfileId=profile.Id,LocationId=location.Id,IsPrimary=true}); else existing.IsPrimary=true;
+        await db.SaveChangesAsync(ct); return Ok(new{message="Location saved."});
+    }
+
+    [HttpPut("me/extended")]
+    public async Task<IActionResult> UpdateExtended(ExtendedProfileRequest request,CancellationToken ct)
+    {
+        var userId=GetUserId(); var profile=await db.Profiles.SingleOrDefaultAsync(x=>x.UserId==userId,ct); if(profile is null)return NotFound(new{message="Create your profile first."});
+        var education=await db.Educations.FindAsync(new object?[]{profile.Id},ct)??new Education{ProfileId=profile.Id}; education.HighestQualification=Clean(request.HighestQualification,120); education.FieldOfStudy=Clean(request.FieldOfStudy,120); education.Institution=Clean(request.Institution,180); if(education.Profile is null)db.Educations.Add(education);
+        var employment=await db.Employments.FindAsync(new object?[]{profile.Id},ct)??new Employment{ProfileId=profile.Id}; employment.Profession=Clean(request.Profession,120); employment.Industry=Clean(request.Industry,120); employment.EmploymentType=Clean(request.EmploymentType,80); employment.WorkLocation=Clean(request.WorkLocation,160); if(employment.Profile is null)db.Employments.Add(employment);
+        var family=await db.FamilyDetails.FindAsync(new object?[]{profile.Id},ct)??new FamilyDetails{ProfileId=profile.Id}; family.ParentsStatus=Clean(request.ParentsStatus,120); family.SiblingsSummary=Clean(request.SiblingsSummary,500); family.FamilyLocation=Clean(request.FamilyLocation,160); family.FamilyStructure=Clean(request.FamilyStructure,80); if(family.Profile is null)db.FamilyDetails.Add(family);
+        var lifestyle=await db.Lifestyles.FindAsync(new object?[]{profile.Id},ct)??new Lifestyle{ProfileId=profile.Id}; lifestyle.FoodPreference=Clean(request.FoodPreference,80); lifestyle.Smoking=Clean(request.Smoking,40); lifestyle.Alcohol=Clean(request.Alcohol,40); lifestyle.Exercise=Clean(request.Exercise,80); lifestyle.Interests=Clean(request.Interests,500); lifestyle.Travel=Clean(request.Travel,120); lifestyle.Pets=Clean(request.Pets,80); if(lifestyle.Profile is null)db.Lifestyles.Add(lifestyle);
+        await db.SaveChangesAsync(ct); return Ok(new{message="Extended profile saved."});
+    }
+
     [HttpPut("me")]
     public async Task<IActionResult> UpsertMine(ProfileRequest request, CancellationToken cancellationToken)
     {
@@ -64,4 +85,4 @@ public sealed class ProfileController(MilanSetuDbContext db) : ControllerBase
 }
 
 public sealed record ProfileIdentityRequest(int? ReligionId, int? CommunityId, int? CasteId, PreferenceImportance Importance);
-public sealed record ProfileRequest(string? DisplayName, DateOnly DateOfBirth, Gender Gender, AccountType AccountType, string? MaritalStatus, string? MotherTongue, string? Bio, ProfileVisibility Visibility, int? MinPartnerAge, int? MaxPartnerAge, bool? RelocationOpen, string? PreferenceImportance);
+public sealed record LocationRequest(int LocationId);\npublic sealed record ExtendedProfileRequest(string? HighestQualification,string? FieldOfStudy,string? Institution,string? Profession,string? Industry,string? EmploymentType,string? WorkLocation,string? ParentsStatus,string? SiblingsSummary,string? FamilyLocation,string? FamilyStructure,string? FoodPreference,string? Smoking,string? Alcohol,string? Exercise,string? Interests,string? Travel,string? Pets);\n\npublic sealed record ProfileRequest(string? DisplayName, DateOnly DateOfBirth, Gender Gender, AccountType AccountType, string? MaritalStatus, string? MotherTongue, string? Bio, ProfileVisibility Visibility, int? MinPartnerAge, int? MaxPartnerAge, bool? RelocationOpen, string? PreferenceImportance);
