@@ -13,7 +13,7 @@ export type ReportReason = 'Abuse' | 'Harassment' | 'Scam' | 'Impersonation' | '
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7001'
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const token = sessionStorage.getItem('milansetu_access_token')
   return token ? { Authorization: `Bearer ${token}` } : {}
 }
