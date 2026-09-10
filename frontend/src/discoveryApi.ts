@@ -1,5 +1,6 @@
 export type DiscoveryProfile = {
   id: string
+  userId: string
   displayName: string
   dateOfBirth: string
   gender: string
