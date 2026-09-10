@@ -25,6 +25,7 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserReport> UserReports => Set<UserReport>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -131,6 +132,17 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.Property(x => x.Body).HasMaxLength(1000).IsRequired();
             entity.HasIndex(x => new { x.UserId, x.ReadAt, x.CreatedAt });
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<UserReport>(entity =>
+        {
+            entity.ToTable("user_reports"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Reason).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Details).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ReportedUserId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => new { x.ReporterUserId, x.CreatedAt });
+            entity.HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ReportedUser).WithMany().HasForeignKey(x => x.ReportedUserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
