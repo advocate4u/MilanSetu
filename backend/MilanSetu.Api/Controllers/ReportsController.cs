@@ -22,6 +22,11 @@ public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
         var details = request.Details?.Trim();
         if (details?.Length > 2000) return BadRequest(new { message = "Report details are too long." });
 
+        var duplicate = await db.UserReports.AnyAsync(x =>
+            x.ReporterUserId == reporterId && x.ReportedUserId == request.ReportedUserId &&
+            x.Status != ReportStatus.Dismissed && x.CreatedAt > DateTimeOffset.UtcNow.AddHours(-24), ct);
+        if (duplicate) return Conflict(new { message = "A recent report for this profile is already under review." });
+
         var report = new UserReport
         {
             Id = Guid.NewGuid(),
@@ -30,8 +35,18 @@ public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
             Reason = request.Reason,
             Details = details
         };
-
         db.UserReports.Add(report);
+
+        db.ModerationCases.Add(new ModerationCase
+        {
+            Id = Guid.NewGuid(),
+            ReportId = report.Id,
+            TargetUserId = report.ReportedUserId,
+            Severity = GetInitialSeverity(report.Reason),
+            Status = ModerationStatus.Open,
+            Action = ModerationAction.None
+        });
+
         db.Notifications.Add(new Notification
         {
             Id = Guid.NewGuid(),
@@ -46,6 +61,29 @@ public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
         await db.SaveChangesAsync(ct);
         return Ok(new { report.Id, status = report.Status.ToString() });
     }
+
+    [HttpGet("mine")]
+    public async Task<IActionResult> Mine(CancellationToken ct)
+    {
+        if (!TryGetUserId(out var reporterId)) return Unauthorized();
+
+        var reports = await db.UserReports.AsNoTracking()
+            .Where(x => x.ReporterUserId == reporterId)
+            .OrderByDescending(x => x.CreatedAt)
+            .ThenByDescending(x => x.Id)
+            .Select(x => new { x.Id, x.ReportedUserId, reason = x.Reason.ToString(), status = x.Status.ToString(), x.CreatedAt, x.ResolvedAt })
+            .Take(100)
+            .ToListAsync(ct);
+
+        return Ok(reports);
+    }
+
+    private static ModerationSeverity GetInitialSeverity(ReportReason reason) => reason switch
+    {
+        ReportReason.Scam or ReportReason.Impersonation => ModerationSeverity.High,
+        ReportReason.Harassment or ReportReason.Abuse => ModerationSeverity.Medium,
+        _ => ModerationSeverity.Low
+    };
 
     private bool TryGetUserId(out Guid userId) =>
         Guid.TryParse(User.FindFirst("sub")?.Value, out userId);
