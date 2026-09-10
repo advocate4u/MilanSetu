@@ -24,6 +24,9 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Block> Blocks => Set<Block>();
     public DbSet<Conversation> Conversations => Set<Conversation>();
     public DbSet<Message> Messages => Set<Message>();
+    public DbSet<Notification> Notifications => Set<Notification>();
+    public DbSet<UserReport> UserReports => Set<UserReport>();
+    public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -121,6 +124,37 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.HasIndex(x => new { x.ConversationId, x.CreatedAt });
             entity.HasOne(x => x.Conversation).WithMany(x => x.Messages).HasForeignKey(x => x.ConversationId).OnDelete(DeleteBehavior.Cascade);
             entity.HasOne(x => x.Sender).WithMany().HasForeignKey(x => x.SenderUserId).OnDelete(DeleteBehavior.Restrict);
+        });
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("notifications"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Title).HasMaxLength(160).IsRequired();
+            entity.Property(x => x.Body).HasMaxLength(1000).IsRequired();
+            entity.HasIndex(x => new { x.UserId, x.ReadAt, x.CreatedAt });
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<UserReport>(entity =>
+        {
+            entity.ToTable("user_reports"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Reason).HasConversion<string>().HasMaxLength(40).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Details).HasMaxLength(2000);
+            entity.HasIndex(x => new { x.ReportedUserId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => new { x.ReporterUserId, x.CreatedAt });
+            entity.HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterUserId).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(x => x.ReportedUser).WithMany().HasForeignKey(x => x.ReportedUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ModerationCase>(entity =>
+        {
+            entity.ToTable("moderation_cases"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Severity).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Action).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.HasIndex(x => new { x.TargetUserId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => x.ReportId).IsUnique();
+            entity.HasOne(x => x.Report).WithMany().HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.TargetUser).WithMany().HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
