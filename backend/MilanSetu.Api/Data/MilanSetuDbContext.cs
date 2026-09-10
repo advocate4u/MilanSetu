@@ -26,6 +26,7 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<Message> Messages => Set<Message>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<UserReport> UserReports => Set<UserReport>();
+    public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -143,6 +144,17 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.HasIndex(x => new { x.ReporterUserId, x.CreatedAt });
             entity.HasOne(x => x.Reporter).WithMany().HasForeignKey(x => x.ReporterUserId).OnDelete(DeleteBehavior.Restrict);
             entity.HasOne(x => x.ReportedUser).WithMany().HasForeignKey(x => x.ReportedUserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<ModerationCase>(entity =>
+        {
+            entity.ToTable("moderation_cases"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Severity).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(20).IsRequired();
+            entity.Property(x => x.Action).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.HasIndex(x => new { x.TargetUserId, x.Status, x.CreatedAt });
+            entity.HasIndex(x => x.ReportId).IsUnique();
+            entity.HasOne(x => x.Report).WithMany().HasForeignKey(x => x.ReportId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.TargetUser).WithMany().HasForeignKey(x => x.TargetUserId).OnDelete(DeleteBehavior.Restrict);
         });
     }
 }
