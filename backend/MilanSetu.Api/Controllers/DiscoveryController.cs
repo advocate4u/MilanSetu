@@ -26,8 +26,11 @@ public sealed class DiscoveryController(MilanSetuDbContext db) : ControllerBase
         if (communityId.HasValue) query = query.Where(x => db.ProfileIdentityPreferences.Any(p => p.ProfileId == x.Id && p.CommunityId == communityId));
         if (casteId.HasValue) query = query.Where(x => db.ProfileIdentityPreferences.Any(p => p.ProfileId == x.Id && p.CasteId == casteId));
         var total = await query.CountAsync(ct);
-        var items = await query.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize).Select(x => new { x.Id, x.DisplayName, x.DateOfBirth, x.Gender, x.MaritalStatus, x.MotherTongue, x.Bio, city = x.Locations.Where(l => l.IsPrimary).Select(l => l.Location.CityName).FirstOrDefault(), education = x.Education == null ? null : x.Education.HighestQualification, profession = x.Employment == null ? null : x.Employment.Profession }).ToListAsync(ct);
+        var items = await query.OrderByDescending(x => x.UpdatedAt ?? x.CreatedAt).Skip((page - 1) * pageSize).Take(pageSize)
+            .Select(x => new { x.Id, userId = x.UserId, x.DisplayName, x.DateOfBirth, x.Gender, x.MaritalStatus, x.MotherTongue, x.Bio, city = x.Locations.Where(l => l.IsPrimary).Select(l => l.Location.CityName).FirstOrDefault(), education = x.Education == null ? null : x.Education.HighestQualification, profession = x.Employment == null ? null : x.Employment.Profession })
+            .ToListAsync(ct);
         return Ok(new { page, pageSize, total, items });
     }
+
     private Guid GetUserId() => Guid.TryParse(User.FindFirst("sub")?.Value, out var id) ? id : throw new UnauthorizedAccessException();
 }
