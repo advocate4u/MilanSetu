@@ -31,3 +31,21 @@ public class UserReport
     public User Reporter { get; set; } = null!;
     public User ReportedUser { get; set; } = null!;
 }
+
+public enum ModerationSeverity { Low = 1, Medium = 2, High = 3 }
+public enum ModerationStatus { Open = 1, Reviewing = 2, Resolved = 3, Dismissed = 4 }
+public enum ModerationAction { None = 1, Warning = 2, MessagingRestriction = 3, TemporarySuspension = 4, PermanentBan = 5 }
+
+public class ModerationCase
+{
+    public Guid Id { get; set; }
+    public Guid ReportId { get; set; }
+    public Guid TargetUserId { get; set; }
+    public ModerationSeverity Severity { get; set; } = ModerationSeverity.Medium;
+    public ModerationStatus Status { get; set; } = ModerationStatus.Open;
+    public ModerationAction Action { get; set; } = ModerationAction.None;
+    public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset? ReviewedAt { get; set; }
+    public UserReport Report { get; set; } = null!;
+    public User TargetUser { get; set; } = null!;
+}
