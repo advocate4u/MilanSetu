@@ -1,5 +1,6 @@
 using MilanSetu.Api.Data;
 using MilanSetu.Api.Domain;
+using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/messages")]
-public sealed class MessagesController(MilanSetuDbContext db) : ControllerBase
+public sealed class MessagesController(MilanSetuDbContext db, MessageModerationService moderation) : ControllerBase
 {
     [HttpGet("conversations")]
     public async Task<IActionResult> Conversations(CancellationToken ct)
@@ -104,6 +105,19 @@ public sealed class MessagesController(MilanSetuDbContext db) : ControllerBase
         if (await IsBlocked(userId, otherUserId, ct))
             return Conflict(new { message = "Messaging is unavailable for this connection." });
 
+        var moderationResult = moderation.Analyze(body);
+        if (moderationResult.RequiresIntervention)
+        {
+            return UnprocessableEntity(new
+            {
+                code = "MESSAGE_REVIEW_REQUIRED",
+                severity = moderationResult.Severity.ToString(),
+                warning = "Please keep conversations respectful and never send money, passwords, OTPs, or other sensitive information.",
+                reason = moderationResult.Reason,
+                action = "Edit the message and try again."
+            });
+        }
+
         var message = new Message
         {
             Id = Guid.NewGuid(),
@@ -114,6 +128,17 @@ public sealed class MessagesController(MilanSetuDbContext db) : ControllerBase
 
         conversation.LastMessageAt = message.CreatedAt;
         db.Messages.Add(message);
+        db.Notifications.Add(new Notification
+        {
+            Id = Guid.NewGuid(),
+            UserId = otherUserId,
+            Type = NotificationType.MessageReceived,
+            Title = "New message",
+            Body = "You received a new message. Open the conversation to read it.",
+            RelatedUserId = userId,
+            RelatedEntityId = conversationId
+        });
+
         await db.SaveChangesAsync(ct);
 
         return Ok(new { message.Id, message.SenderUserId, message.Body, message.CreatedAt });
