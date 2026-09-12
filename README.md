@@ -34,6 +34,12 @@ For local development, set the connection string through user secrets or an envi
 Host=localhost;Port=5432;Database=milansetu;Username=milansetu;Password=<local-password>
 ```
 
+### Verification OTP
+
+Mobile/email verification uses cryptographically secure six-digit codes. Codes are stored only as HMAC hashes using the configured JWT signing secret, expire after 10 minutes, and are invalidated after five failed attempts. Resends are throttled for 60 seconds.
+
+The current delivery adapter intentionally has no third-party SMS/email dependency. It returns a safe temporary-unavailable response until a real delivery provider is configured. OTP values are never returned by the API or logged.
+
 The API exposes:
 
 - `GET /api/health` — application health
