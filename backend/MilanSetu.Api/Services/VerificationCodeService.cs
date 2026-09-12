@@ -1,64 +1,92 @@
 using System.Security.Cryptography;
 using System.Text;
+using MilanSetu.Api.Data;
 using MilanSetu.Api.Domain;
+using Microsoft.EntityFrameworkCore;
 
 namespace MilanSetu.Api.Services;
 
 public interface IVerificationCodeSender
 {
-    Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken);
+    Task SendAsync(VerificationChallengePurpose purpose, string destination, string code, CancellationToken cancellationToken);
 }
 
-public sealed class VerificationCodeSender(IHostEnvironment environment, ILogger<VerificationCodeSender> logger) : IVerificationCodeSender
+public sealed class VerificationCodeDeliveryNotConfiguredException : Exception
 {
-    public Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken)
+    public VerificationCodeDeliveryNotConfiguredException() : base("Verification code delivery is not configured.") { }
+}
+
+public sealed class VerificationCodeSender : IVerificationCodeSender
+{
+    public Task SendAsync(VerificationChallengePurpose purpose, string destination, string code, CancellationToken cancellationToken) =>
+        throw new VerificationCodeDeliveryNotConfiguredException();
+}
+
+public sealed class VerificationOtpService(MilanSetuDbContext db, IVerificationCodeSender sender)
+{
+    public const int CodeLength = 6;
+    public const int MaxAttempts = 5;
+    private static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(10);
+    private static readonly TimeSpan ResendCooldown = TimeSpan.FromSeconds(60);
+
+    public async Task<(bool Success, string Message)> IssueAsync(Guid userId, VerificationChallengePurpose purpose, string destination, CancellationToken ct)
     {
-        if (environment.IsDevelopment())
+        var now = DateTimeOffset.UtcNow;
+        var recent = await db.VerificationChallenges.AsNoTracking()
+            .Where(x => x.UserId == userId && x.Purpose == purpose && x.CreatedAt > now.Subtract(ResendCooldown) && x.ConsumedAt == null)
+            .OrderByDescending(x => x.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+        if (recent is not null) return (false, "A verification code was sent recently. Please wait before requesting another code.");
+
+        var code = GenerateCode();
+        db.VerificationChallenges.Add(new VerificationChallenge
         {
-            logger.LogInformation("Development verification code generated for {Type} to masked destination {Destination}: {Code}",
-                type, Mask(destination), code);
-            return Task.CompletedTask;
+            Id = Guid.NewGuid(), UserId = userId, Purpose = purpose,
+            CodeHash = HashCode(code), CreatedAt = now, ExpiresAt = now.Add(Lifetime)
+        });
+        await db.SaveChangesAsync(ct);
+        try { await sender.SendAsync(purpose, destination, code, ct); }
+        catch
+        {
+            var challenge = await db.VerificationChallenges.Where(x => x.UserId == userId && x.Purpose == purpose && x.ConsumedAt == null)
+                .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct);
+            if (challenge is not null) db.VerificationChallenges.Remove(challenge);
+            await db.SaveChangesAsync(ct);
+            throw;
+        }
+        return (true, "A verification code has been sent. It expires in 10 minutes.");
+    }
+
+    public async Task<(bool Success, string Message)> VerifyAsync(Guid userId, VerificationChallengePurpose purpose, string code, CancellationToken ct)
+    {
+        if (code.Length != CodeLength || code.Any(c => c is < '0' or > '9')) return (false, "The verification code is invalid or expired.");
+        var now = DateTimeOffset.UtcNow;
+        var challenge = await db.VerificationChallenges.Where(x => x.UserId == userId && x.Purpose == purpose && x.ConsumedAt == null)
+            .OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync(ct);
+        if (challenge is null || challenge.ExpiresAt <= now || challenge.FailedAttempts >= MaxAttempts)
+            return (false, "The verification code is invalid or expired.");
+
+        var expected = Convert.FromHexString(challenge.CodeHash);
+        var supplied = Convert.FromHexString(HashCode(code));
+        if (!CryptographicOperations.FixedTimeEquals(expected, supplied))
+        {
+            challenge.FailedAttempts++;
+            if (challenge.FailedAttempts >= MaxAttempts) challenge.ConsumedAt = now;
+            await db.SaveChangesAsync(ct);
+            return (false, "The verification code is invalid or expired.");
         }
 
-        throw new InvalidOperationException("No verification delivery provider is configured for this environment.");
+        challenge.ConsumedAt = now;
+        var user = await db.Users.FirstAsync(x => x.Id == userId, ct);
+        var type = purpose == VerificationChallengePurpose.VerifyMobile ? VerificationType.Mobile : VerificationType.Email;
+        var request = await db.VerificationRequests.Where(x => x.UserId == userId && x.Type == type)
+            .OrderByDescending(x => x.RequestedAt).FirstOrDefaultAsync(ct);
+        if (purpose == VerificationChallengePurpose.VerifyMobile) user.IsPhoneVerified = true; else user.IsEmailVerified = true;
+        if (request is not null) { request.Status = VerificationStatus.Verified; request.VerifiedAt = now; }
+        await db.SaveChangesAsync(ct);
+        return (true, "Verification completed successfully.");
     }
 
-    private static string Mask(string value)
-    {
-        if (value.Length <= 4) return "***";
-        return $"{value[..Math.Min(2, value.Length)]}***{value[^2..]}";
-    }
-}
-
-public sealed class VerificationChallengeService(IConfiguration configuration)
-{
-    private const int CodeLength = 6;
-    private const int MaxAttempts = 5;
-    private static readonly TimeSpan CodeLifetime = TimeSpan.FromMinutes(10);
-
-    public string GenerateCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-
-    public string HashCode(Guid userId, VerificationType type, string code)
-    {
-        var secret = configuration["Verification:HashKey"];
-        if (string.IsNullOrWhiteSpace(secret) || Encoding.UTF8.GetByteCount(secret) < 32)
-            throw new InvalidOperationException("Verification:HashKey must be configured with at least 32 bytes.");
-
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(secret));
-        var input = $"{userId:N}|{type}|{code}";
-        return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(input)));
-    }
-
-    public bool IsExpired(VerificationChallenge challenge, DateTimeOffset now) => now >= challenge.ExpiresAt;
-    public bool HasTooManyAttempts(VerificationChallenge challenge) => challenge.FailedAttempts >= MaxAttempts;
-
-    public bool IsValidCode(Guid userId, VerificationType type, VerificationChallenge challenge, string code)
-    {
-        if (code.Length != CodeLength || !code.All(char.IsDigit)) return false;
-        var expected = HashCode(userId, type, code);
-        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(challenge.CodeHash));
-    }
-
-    public static DateTimeOffset GetExpiry(DateTimeOffset now) => now.Add(CodeLifetime);
-    public static TimeSpan ResendCooldown => TimeSpan.FromSeconds(60);
+    private static string GenerateCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
+    private static string HashCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 }
