@@ -4,6 +4,7 @@ using MilanSetu.Api.Domain;
 using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 namespace MilanSetu.Api.Controllers;
@@ -14,15 +15,19 @@ namespace MilanSetu.Api.Controllers;
 public sealed class VerificationOtpController(MilanSetuDbContext db, VerificationOtpService otpService) : ControllerBase
 {
     [HttpPost("mobile/send-code")]
+    [EnableRateLimiting("verification")]
     public Task<IActionResult> SendMobileCode(CancellationToken ct) => SendCode(VerificationChallengePurpose.VerifyMobile, VerificationType.Mobile, ct);
 
     [HttpPost("email/send-code")]
+    [EnableRateLimiting("verification")]
     public Task<IActionResult> SendEmailCode(CancellationToken ct) => SendCode(VerificationChallengePurpose.VerifyEmail, VerificationType.Email, ct);
 
     [HttpPost("mobile/verify")]
+    [EnableRateLimiting("verification")]
     public Task<IActionResult> VerifyMobile([FromBody] VerifyCodeRequest request, CancellationToken ct) => VerifyCode(VerificationChallengePurpose.VerifyMobile, request, ct);
 
     [HttpPost("email/verify")]
+    [EnableRateLimiting("verification")]
     public Task<IActionResult> VerifyEmail([FromBody] VerifyCodeRequest request, CancellationToken ct) => VerifyCode(VerificationChallengePurpose.VerifyEmail, request, ct);
 
     private async Task<IActionResult> SendCode(VerificationChallengePurpose purpose, VerificationType type, CancellationToken ct)
@@ -30,14 +35,10 @@ public sealed class VerificationOtpController(MilanSetuDbContext db, Verificatio
         if (!TryGetUserId(out var userId)) return Unauthorized();
         var user = await db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == userId && x.IsActive, ct);
         if (user is null) return Unauthorized();
-
         var destination = purpose == VerificationChallengePurpose.VerifyMobile ? user.PhoneNumber : user.Email;
-        if (string.IsNullOrWhiteSpace(destination))
-            return BadRequest(new { message = purpose == VerificationChallengePurpose.VerifyMobile ? "Add a mobile number before verification." : "Add an email address before verification." });
-
+        if (string.IsNullOrWhiteSpace(destination)) return BadRequest(new { message = purpose == VerificationChallengePurpose.VerifyMobile ? "Add a mobile number before verification." : "Add an email address before verification." });
         var alreadyVerified = purpose == VerificationChallengePurpose.VerifyMobile ? user.IsPhoneVerified : user.IsEmailVerified;
         if (alreadyVerified) return Conflict(new { message = "This verification is already completed." });
-
         await EnsureRequestAsync(userId, type, ct);
         try
         {
