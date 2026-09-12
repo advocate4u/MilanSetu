@@ -28,6 +28,7 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<UserReport> UserReports => Set<UserReport>();
     public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
     public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
+    public DbSet<VerificationChallenge> VerificationChallenges => Set<VerificationChallenge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -67,7 +68,7 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
         });
         modelBuilder.Entity<ProfilePreference>(entity =>
         {
-            entity.ToTable("profile_preferences"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.ProfileId).IsUnique();
+            entity.ToTable("profile_preferences"); entity.HasKey(x => x.Id);
             entity.Property(x => x.Importance).HasConversion<string>().HasMaxLength(20).IsRequired();
             entity.HasOne(x => x.Profile).WithMany(x => x.Preferences).HasForeignKey(x => x.ProfileId).OnDelete(DeleteBehavior.Cascade);
             entity.ToTable(t => t.HasCheckConstraint("ck_profile_preferences_age_range", "min_age IS NULL OR max_age IS NULL OR min_age <= max_age"));
@@ -164,6 +165,16 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsRequired();
             entity.Property(x => x.ReviewerNotes).HasMaxLength(2000);
             entity.HasIndex(x => new { x.UserId, x.Type, x.RequestedAt });
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<VerificationChallenge>(entity =>
+        {
+            entity.ToTable("verification_challenges");
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Purpose).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.CodeHash).HasMaxLength(64).IsRequired();
+            entity.HasIndex(x => new { x.UserId, x.Purpose, x.CreatedAt });
+            entity.HasIndex(x => new { x.UserId, x.Purpose, x.ConsumedAt });
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
         });
     }
