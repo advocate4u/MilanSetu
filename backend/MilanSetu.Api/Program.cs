@@ -10,13 +10,14 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<VerificationOtpService>();
 builder.Services.AddSingleton<MessageModerationService>();
+builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrWhiteSpace(connectionString))
 {
-    builder.Services.AddDbContext<MilanSetuDbContext>(options =>
-        options.UseNpgsql(connectionString));
+    builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
 }
 
 var jwtKey = builder.Configuration["Auth:Jwt:Key"];
@@ -24,21 +25,20 @@ if (!string.IsNullOrWhiteSpace(jwtKey) && Encoding.UTF8.GetByteCount(jwtKey) >= 
 {
     var issuer = builder.Configuration["Auth:Jwt:Issuer"] ?? "MilanSetu";
     var audience = builder.Configuration["Auth:Jwt:Audience"] ?? "MilanSetu.Web";
-    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        .AddJwtBearer(options =>
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
         {
-            options.TokenValidationParameters = new TokenValidationParameters
-            {
-                ValidateIssuerSigningKey = true,
-                IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
-                ValidateIssuer = true,
-                ValidIssuer = issuer,
-                ValidateAudience = true,
-                ValidAudience = audience,
-                ValidateLifetime = true,
-                ClockSkew = TimeSpan.FromSeconds(30)
-            };
-        });
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
+            ValidateIssuer = true,
+            ValidIssuer = issuer,
+            ValidateAudience = true,
+            ValidAudience = audience,
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromSeconds(30)
+        };
+    });
 }
 else
 {
@@ -53,6 +53,12 @@ builder.Services.AddRateLimiter(options =>
     {
         limiter.PermitLimit = 10;
         limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("verification", limiter =>
+    {
+        limiter.PermitLimit = 10;
+        limiter.Window = TimeSpan.FromMinutes(10);
         limiter.QueueLimit = 0;
     });
 });
@@ -77,31 +83,17 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-app.MapGet("/api/health", () => Results.Ok(new
-{
-    status = "ok",
-    service = "MilanSetu.Api"
-}));
-
+app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "MilanSetu.Api" }));
 app.MapGet("/api/health/database", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
     var db = services.GetService<MilanSetuDbContext>();
-    if (db is null)
-    {
-        return Results.Ok(new { status = "not-configured", database = "postgresql" });
-    }
-
+    if (db is null) return Results.Ok(new { status = "not-configured", database = "postgresql" });
     try
     {
         var canConnect = await db.Database.CanConnectAsync(cancellationToken);
-        return canConnect
-            ? Results.Ok(new { status = "ok", database = "postgresql" })
-            : Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
+        return canConnect ? Results.Ok(new { status = "ok", database = "postgresql" }) : Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
     }
-    catch
-    {
-        return Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
-    }
+    catch { return Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503); }
 });
 
 app.Run();
