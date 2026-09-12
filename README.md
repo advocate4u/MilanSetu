@@ -34,6 +34,16 @@ For local development, set the connection string through user secrets or an envi
 Host=localhost;Port=5432;Database=milansetu;Username=milansetu;Password=<local-password>
 ```
 
+### Verification OTP configuration
+
+Mobile/email verification codes are generated with a cryptographically secure random generator and stored only as HMAC hashes. Configure a private verification hash key outside source control:
+
+```text
+Verification__HashKey=<at-least-32-byte-random-secret>
+```
+
+Development may use the application log to test delivery without a third-party provider. Production deliberately rejects delivery until a real SMS/email provider is configured. OTP values are never returned by the API and must never be logged in production. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge.
+
 The API exposes:
 
 - `GET /api/health` — application health
