@@ -1,11 +1,11 @@
 # Database schema updates
 
-The application uses EF Core with PostgreSQL. Messaging introduces the `conversations` and `messages` tables and their indexes/relationships in `MilanSetuDbContext`.
+The application uses EF Core with PostgreSQL. Messaging introduces the `conversations` and `messages` tables and verification introduces the `verification_challenges` table plus its indexes/relationships in `MilanSetuDbContext`.
 
-Before applying this feature to a deployed database, generate and review an EF Core migration from the `backend/MilanSetu.Api` project:
+Before applying these features to a deployed database, generate and review an EF Core migration from the `backend/MilanSetu.Api` project:
 
 ```bash
-dotnet ef migrations add AddMessagingFoundation
+dotnet ef migrations add AddVerificationOtp
 dotnet ef database update
 ```
 

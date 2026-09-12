@@ -10,7 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<VerificationOtpService>();
 builder.Services.AddSingleton<MessageModerationService>();
+builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrWhiteSpace(connectionString))
@@ -53,6 +55,12 @@ builder.Services.AddRateLimiter(options =>
     {
         limiter.PermitLimit = 10;
         limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+    });
+    options.AddFixedWindowLimiter("verification", limiter =>
+    {
+        limiter.PermitLimit = 10;
+        limiter.Window = TimeSpan.FromMinutes(10);
         limiter.QueueLimit = 0;
     });
 });
