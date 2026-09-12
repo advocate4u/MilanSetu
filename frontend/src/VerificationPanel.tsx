@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getVerificationStatus, requestVerification, type VerificationItem, type VerificationType } from './verificationApi'
+import './verification.css'
 
 const labels: Array<{ type: VerificationType; label: string; description: string }> = [
   { type: 'Mobile', label: 'Mobile number', description: 'Confirms that you control the mobile number on your account.' },
@@ -28,8 +29,12 @@ export default function VerificationPanel() {
     setBusy(type); setError(''); setSuccess('')
     try {
       const result = await requestVerification(type)
-      setItems(current => current.map(item => item.type === type ? { ...item, status: 'Pending' } : item))
-      if (!items.some(x => x.type === type)) setItems(current => [...current, { type, status: 'Pending', requestedAt: new Date().toISOString(), verifiedAt: null }])
+      setItems(current => {
+        const exists = current.some(item => item.type === type)
+        return exists
+          ? current.map(item => item.type === type ? { ...item, status: 'Pending' } : item)
+          : [...current, { type, status: 'Pending', requestedAt: new Date().toISOString(), verifiedAt: null }]
+      })
       setSuccess(result?.message ?? 'Verification request submitted.')
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to request verification.') }
     finally { setBusy(null) }
