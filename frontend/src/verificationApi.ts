@@ -19,17 +19,16 @@ async function request(path: string, options: RequestInit = {}) {
   const response = await fetch(`${apiBaseUrl}${path}`, {
     credentials: 'include',
     ...options,
-    headers: { ...authHeaders(), ...(options.headers ?? {}) },
+    headers: { 'Content-Type': 'application/json', ...authHeaders(), ...(options.headers ?? {}) },
   })
   const data = await response.json().catch(() => null)
   if (!response.ok) throw new Error(data?.message ?? 'Unable to complete the verification request.')
   return data
 }
 
-export function getVerificationStatus() {
-  return request('/api/verification/me') as Promise<VerificationItem[]>
-}
-
-export function requestVerification(type: VerificationType) {
-  return request(`/api/verification/${type}/request`, { method: 'POST' })
+export function getVerificationStatus() { return request('/api/verification/me') as Promise<VerificationItem[]> }
+export function requestVerification(type: VerificationType) { return request(`/api/verification/${type}/request`, { method: 'POST' }) }
+export function sendVerificationCode(type: 'Mobile' | 'Email') { return request(`/api/verification/${type.toLowerCase()}/send-code`, { method: 'POST' }) }
+export function verifyCode(type: 'Mobile' | 'Email', code: string) {
+  return request(`/api/verification/${type.toLowerCase()}/verify`, { method: 'POST', body: JSON.stringify({ code }) })
 }
