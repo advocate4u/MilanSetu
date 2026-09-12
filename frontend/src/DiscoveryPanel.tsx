@@ -11,6 +11,8 @@ function ageFromDob(value: string) {
   return age
 }
 
+function openMessaging(userId: string) { window.dispatchEvent(new CustomEvent('milansetu:open-conversation', { detail: userId })) }
+
 export default function DiscoveryPanel() {
   const [items, setItems] = useState<DiscoveryProfile[]>([])
   const [total, setTotal] = useState(0)
@@ -88,7 +90,7 @@ export default function DiscoveryPanel() {
       </article>
     })}</div>}
     <div className="discovery-pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><span>Page {page} of {totalPages}</span><button className="secondary-button" disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next</button></div>
-    {selected && <div className="discovery-detail"><div className="discovery-detail-head"><div><p className="eyebrow">PROFILE</p><h3>{selected.displayName}, {ageFromDob(selected.dateOfBirth)}</h3></div><button className="text-button" onClick={() => setSelected(null)}>Close</button></div><p>{[selected.city, selected.profession, selected.education].filter(Boolean).join(' • ')}</p>{selected.bio && <p>{selected.bio}</p>}<p className="discovery-private-note">Contact details are intentionally not displayed. A conversation becomes available only after mutual connection.</p><div className="discovery-actions"><button className="primary-button" onClick={() => void interest(selected)} disabled={Boolean(interestStatus[selected.id])}>{interestStatus[selected.id] ?? 'Express interest'}</button><button className="secondary-button" onClick={() => setReportingUserId(selected.userId)}>Report profile</button></div></div>}
+    {selected && <div className="discovery-detail"><div className="discovery-detail-head"><div><p className="eyebrow">PROFILE</p><h3>{selected.displayName}, {ageFromDob(selected.dateOfBirth)}</h3></div><button className="text-button" onClick={() => setSelected(null)}>Close</button></div><p>{[selected.city, selected.profession, selected.education].filter(Boolean).join(' • ')}</p>{selected.bio && <p>{selected.bio}</p>}<p className="discovery-private-note">Contact details are intentionally not displayed. A conversation becomes available only after mutual connection.</p><div className="discovery-actions"><button className="primary-button" onClick={() => void interest(selected)} disabled={Boolean(interestStatus[selected.id])}>{interestStatus[selected.id] ?? 'Express interest'}</button><button className="secondary-button" onClick={() => openMessaging(selected.userId)}>Message</button><button className="secondary-button" onClick={() => setReportingUserId(selected.userId)}>Report profile</button></div></div>}
     {reportingUserId && <ReportDialog reportedUserId={reportingUserId} onClose={() => setReportingUserId(null)} />}
   </section>
 }
