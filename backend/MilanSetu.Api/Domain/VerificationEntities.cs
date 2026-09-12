@@ -31,20 +31,21 @@ public sealed class VerificationRequest
     public User User { get; set; } = null!;
 }
 
+public enum VerificationChallengePurpose
+{
+    VerifyMobile = 1,
+    VerifyEmail = 2
+}
+
 public sealed class VerificationChallenge
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
-    public Guid VerificationRequestId { get; set; }
-    public VerificationType Type { get; set; }
-    public string Destination { get; set; } = null!;
+    public VerificationChallengePurpose Purpose { get; set; }
     public string CodeHash { get; set; } = null!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset ExpiresAt { get; set; }
     public DateTimeOffset? ConsumedAt { get; set; }
-    public DateTimeOffset? VerifiedAt { get; set; }
     public int FailedAttempts { get; set; }
-    public DateTimeOffset? LastAttemptAt { get; set; }
     public User User { get; set; } = null!;
-    public VerificationRequest VerificationRequest { get; set; } = null!;
 }
