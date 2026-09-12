@@ -43,10 +43,23 @@ button, a, input, select, textarea { font: inherit; } button { cursor: pointer; 
 .danger-link { color: #9b4040; } .discovery-empty { padding: 45px 20px; text-align: center; color: #6f6762; } .discovery-error { margin: 12px 0; padding: 11px 13px; border-radius: 10px; background: #fff0ef; color: #8c3636; }
 .discovery-pagination { display: flex; justify-content: center; align-items: center; gap: 14px; margin-top: 24px; } .discovery-detail { margin-top: 22px; padding: 22px; border-radius: 18px; background: #faf5f2; }
 .discovery-detail-head { display: flex; justify-content: space-between; gap: 16px; } .discovery-detail h3 { margin: 0; font-size: 28px; } .discovery-private-note { padding: 11px 13px; border-radius: 10px; background: #f1e8e2; font-size: 13px; }
+.photo-manager { max-width: 1180px; margin: 30px auto 70px; padding: 30px; border: 1px solid #eaded7; border-radius: 24px; background: #fffdfa; box-shadow: 0 20px 60px rgba(60,42,32,.06); }
+.photo-manager-head { display: flex; justify-content: space-between; gap: 24px; align-items: flex-end; margin-bottom: 22px; }
+.photo-manager-head h2 { margin: 0 0 8px; font-size: clamp(28px,4vw,42px); letter-spacing: -.04em; }
+.photo-manager-head p:not(.eyebrow) { margin: 0; max-width: 760px; color: #716965; line-height: 1.6; }
+.photo-upload { display: inline-flex; align-items: center; position: relative; white-space: nowrap; }
+.photo-upload input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.photo-upload input:disabled { cursor: not-allowed; }
+.photo-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+.photo-card { position: relative; overflow: hidden; min-height: 230px; border: 1px solid #eee3df; border-radius: 18px; background: #f7f1ed; }
+.photo-card img { width: 100%; height: 230px; display: block; object-fit: cover; }
+.photo-card .text-button { position: absolute; right: 10px; bottom: 8px; padding: 8px 10px; border-radius: 9px; background: rgba(255,255,255,.94); }
+.photo-primary { position: absolute; left: 10px; top: 10px; padding: 6px 9px; border-radius: 999px; background: rgba(255,255,255,.94); color: #6d2633; font-size: 11px; font-weight: 800; }
+.photo-empty { padding: 34px 20px; border: 1px dashed #d8cbc6; border-radius: 16px; text-align: center; color: #706863; line-height: 1.6; }
 .principles { max-width: 1180px; margin: 0 auto; padding: 30px 6vw 100px; display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
 .principles > div { padding: 28px; border: 1px solid #eaded7; border-radius: 20px; background: #fffdfa; } .principles span { color: #9b4c5a; font-size: 12px; font-weight: 800; }
 .principles h3 { margin: 20px 0 10px; font-size: 21px; } .principles p { margin: 0; color: #756d68; line-height: 1.6; font-size: 14px; }
 .safety-banner { max-width: 1180px; margin: 0 auto 90px; padding: 42px; border-radius: 24px; background: #f1e8e2; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
 .safety-banner h2 { margin: 0; font-size: clamp(28px,4vw,42px); letter-spacing: -.04em; } .safety-banner > p { margin: 0; color: #665d58; line-height: 1.7; }
 footer { border-top: 1px solid #eee6df; padding: 28px 6vw; display: flex; justify-content: space-between; color: #817873; font-size: 13px; }
-@media (max-width: 800px) { .topbar { padding: 0 20px; } .nav-links a { display: none; } .hero { grid-template-columns: 1fr; gap: 42px; padding-top: 64px; } .profile-editor { margin: 20px 12px 60px; padding: 18px; } .profile-fields, .principles, .safety-banner { grid-template-columns: 1fr; } .safety-banner { margin-left: 20px; margin-right: 20px; } .discovery-panel { margin: 20px 12px 60px; padding: 18px; } .discovery-head { display: block; } .discovery-head > button { margin-top: 14px; } .discovery-filters label { min-width: 100%; } .discovery-pagination { flex-wrap: wrap; } footer { padding: 24px 20px; gap: 15px; flex-direction: column; } }
+@media (max-width: 800px) { .topbar { padding: 0 20px; } .nav-links a { display: none; } .hero { grid-template-columns: 1fr; gap: 42px; padding-top: 64px; } .profile-editor { margin: 20px 12px 60px; padding: 18px; } .profile-fields, .principles, .safety-banner { grid-template-columns: 1fr; } .safety-banner { margin-left: 20px; margin-right: 20px; } .discovery-panel, .photo-manager { margin: 20px 12px 60px; padding: 18px; } .discovery-head, .photo-manager-head { display: block; } .discovery-head > button, .photo-upload { margin-top: 14px; } .discovery-filters label { min-width: 100%; } .discovery-pagination { flex-wrap: wrap; } footer { padding: 24px 20px; gap: 15px; flex-direction: column; } }
