@@ -7,7 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddControllers();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<VerificationOtpService>();
@@ -15,10 +14,7 @@ builder.Services.AddSingleton<MessageModerationService>();
 builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-if (!string.IsNullOrWhiteSpace(connectionString))
-{
-    builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
-}
+if (!string.IsNullOrWhiteSpace(connectionString)) builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
 
 var jwtKey = builder.Configuration["Auth:Jwt:Key"];
 if (!string.IsNullOrWhiteSpace(jwtKey) && Encoding.UTF8.GetByteCount(jwtKey) >= 32)
@@ -47,23 +43,13 @@ builder.Services.AddRateLimiter(options =>
 builder.Services.AddCors(options => options.AddPolicy("Web", policy => policy.WithOrigins("http://localhost:5173").AllowAnyHeader().AllowAnyMethod().AllowCredentials()));
 
 var app = builder.Build();
-app.UseHttpsRedirection();
-app.UseCors("Web");
-app.UseRateLimiter();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
-
+app.UseHttpsRedirection(); app.UseCors("Web"); app.UseRateLimiter(); app.UseAuthentication(); app.UseAuthorization(); app.MapControllers();
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "MilanSetu.Api" }));
 app.MapGet("/api/health/database", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
     var db = services.GetService<MilanSetuDbContext>();
     if (db is null) return Results.Ok(new { status = "not-configured", database = "postgresql" });
-    try
-    {
-        var canConnect = await db.Database.CanConnectAsync(cancellationToken);
-        return canConnect ? Results.Ok(new { status = "ok", database = "postgresql" }) : Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
-    }
+    try { var canConnect = await db.Database.CanConnectAsync(cancellationToken); return canConnect ? Results.Ok(new { status = "ok", database = "postgresql" }) : Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503); }
     catch { return Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503); }
 });
 app.Run();
