@@ -5,6 +5,7 @@ import DiscoveryPanel from './DiscoveryPanel'
 import NotificationPanel from './NotificationPanel'
 import ProfileEditor from './ProfileEditor'
 import ProfilePhotoManager from './ProfilePhotoManager'
+import VerificationPanel from './VerificationPanel'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -12,6 +13,7 @@ createRoot(document.getElementById('root')!).render(
     <App />
     <ProfileEditor />
     <ProfilePhotoManager />
+    <VerificationPanel />
     <DiscoveryPanel />
     <NotificationPanel />
   </StrictMode>,
