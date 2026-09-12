@@ -11,15 +11,15 @@ public interface IVerificationCodeSender
     Task SendAsync(VerificationChallengePurpose purpose, string destination, string code, CancellationToken cancellationToken);
 }
 
-public sealed class VerificationCodeSender(ILogger<VerificationCodeSender> logger) : IVerificationCodeSender
+public sealed class VerificationCodeDeliveryNotConfiguredException : Exception
 {
-    public Task SendAsync(VerificationChallengePurpose purpose, string destination, string code, CancellationToken cancellationToken)
-    {
-        // Real SMS/email delivery must be supplied by a provider implementation.
-        // The OTP and destination are deliberately never written to application logs.
-        logger.LogInformation("Verification code delivery requested for {Purpose}.", purpose);
-        return Task.CompletedTask;
-    }
+    public VerificationCodeDeliveryNotConfiguredException() : base("Verification code delivery is not configured.") { }
+}
+
+public sealed class VerificationCodeSender : IVerificationCodeSender
+{
+    public Task SendAsync(VerificationChallengePurpose purpose, string destination, string code, CancellationToken cancellationToken) =>
+        throw new VerificationCodeDeliveryNotConfiguredException();
 }
 
 public sealed class VerificationOtpService(MilanSetuDbContext db, IVerificationCodeSender sender)
@@ -43,16 +43,26 @@ public sealed class VerificationOtpService(MilanSetuDbContext db, IVerificationC
         var code = GenerateCode();
         db.VerificationChallenges.Add(new VerificationChallenge
         {
-            Id = Guid.NewGuid(),
-            UserId = userId,
-            Purpose = purpose,
-            CodeHash = HashCode(code),
-            CreatedAt = now,
-            ExpiresAt = now.Add(Lifetime)
+            Id = Guid.NewGuid(), UserId = userId, Purpose = purpose,
+            CodeHash = HashCode(code), CreatedAt = now, ExpiresAt = now.Add(Lifetime)
         });
-
         await db.SaveChangesAsync(ct);
-        await sender.SendAsync(purpose, destination, code, ct);
+
+        try
+        {
+            await sender.SendAsync(purpose, destination, code, ct);
+        }
+        catch
+        {
+            var challenge = await db.VerificationChallenges
+                .Where(x => x.UserId == userId && x.Purpose == purpose && x.ConsumedAt == null)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefaultAsync(ct);
+            if (challenge is not null) db.VerificationChallenges.Remove(challenge);
+            await db.SaveChangesAsync(ct);
+            throw;
+        }
+
         return (true, "A verification code has been sent. It expires in 10 minutes.");
     }
 
@@ -75,35 +85,25 @@ public sealed class VerificationOtpService(MilanSetuDbContext db, IVerificationC
         if (!CryptographicOperations.FixedTimeEquals(expected, supplied))
         {
             challenge.FailedAttempts++;
-            if (challenge.FailedAttempts >= MaxAttempts)
-                challenge.ConsumedAt = now;
+            if (challenge.FailedAttempts >= MaxAttempts) challenge.ConsumedAt = now;
             await db.SaveChangesAsync(ct);
             return (false, "The verification code is invalid or expired.");
         }
 
         challenge.ConsumedAt = now;
         var user = await db.Users.FirstAsync(x => x.Id == userId, ct);
-        var request = await db.VerificationRequests
-            .Where(x => x.UserId == userId && x.Type == (purpose == VerificationChallengePurpose.VerifyMobile ? VerificationType.Mobile : VerificationType.Email))
-            .OrderByDescending(x => x.RequestedAt)
-            .FirstOrDefaultAsync(ct);
+        var type = purpose == VerificationChallengePurpose.VerifyMobile ? VerificationType.Mobile : VerificationType.Email;
+        var request = await db.VerificationRequests.Where(x => x.UserId == userId && x.Type == type)
+            .OrderByDescending(x => x.RequestedAt).FirstOrDefaultAsync(ct);
 
-        if (purpose == VerificationChallengePurpose.VerifyMobile)
-            user.IsPhoneVerified = true;
-        else
-            user.IsEmailVerified = true;
+        if (purpose == VerificationChallengePurpose.VerifyMobile) user.IsPhoneVerified = true;
+        else user.IsEmailVerified = true;
 
-        if (request is not null)
-        {
-            request.Status = VerificationStatus.Verified;
-            request.VerifiedAt = now;
-        }
-
+        if (request is not null) { request.Status = VerificationStatus.Verified; request.VerifiedAt = now; }
         await db.SaveChangesAsync(ct);
         return (true, "Verification completed successfully.");
     }
 
     private static string GenerateCode() => RandomNumberGenerator.GetInt32(0, 1_000_000).ToString("D6");
-
     private static string HashCode(string code) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(code)));
 }
