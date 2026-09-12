@@ -28,6 +28,7 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
     public DbSet<UserReport> UserReports => Set<UserReport>();
     public DbSet<ModerationCase> ModerationCases => Set<ModerationCase>();
     public DbSet<VerificationRequest> VerificationRequests => Set<VerificationRequest>();
+    public DbSet<VerificationChallenge> VerificationChallenges => Set<VerificationChallenge>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -165,6 +166,17 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
             entity.Property(x => x.ReviewerNotes).HasMaxLength(2000);
             entity.HasIndex(x => new { x.UserId, x.Type, x.RequestedAt });
             entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<VerificationChallenge>(entity =>
+        {
+            entity.ToTable("verification_challenges"); entity.HasKey(x => x.Id);
+            entity.Property(x => x.Type).HasConversion<string>().HasMaxLength(30).IsRequired();
+            entity.Property(x => x.Destination).HasMaxLength(320).IsRequired();
+            entity.Property(x => x.CodeHash).HasMaxLength(128).IsRequired();
+            entity.HasIndex(x => new { x.UserId, x.Type, x.CreatedAt });
+            entity.HasIndex(x => new { x.VerificationRequestId, x.ConsumedAt });
+            entity.HasOne(x => x.User).WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.VerificationRequest).WithMany().HasForeignKey(x => x.VerificationRequestId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }
