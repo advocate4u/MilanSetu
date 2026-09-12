@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { deleteMessage, getConversations, getMessages, openConversation, sendMessage, type Conversation, type Message } from './messagingApi'
+import './messaging.css'
 
 const currentUserId = () => { try { return JSON.parse(atob((sessionStorage.getItem('milansetu_access_token') ?? '').split('.')[1] ?? '')).sub ?? '' } catch { return '' } }
 
