@@ -13,6 +13,8 @@ builder.Services.AddScoped<ReviewerAuthorizationService>();
 builder.Services.AddSingleton<MessageModerationService>();
 builder.Services.AddSingleton<VerificationChallengeService>();
 builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
+builder.Services.AddSingleton<IVerificationDocumentStorage, FileSystemVerificationDocumentStorage>();
+builder.Services.AddSingleton<IVerificationDocumentScanner, QuarantineOnlyVerificationDocumentScanner>();
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrWhiteSpace(connectionString)) builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
 var jwtKey = builder.Configuration["Auth:Jwt:Key"];
