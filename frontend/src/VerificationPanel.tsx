@@ -12,6 +12,7 @@ const labels: Array<{ type: VerificationType; label: string; description: string
 type OtpType = 'Email'
 
 export default function VerificationPanel() {
+  const [authenticated, setAuthenticated] = useState(() => Boolean(sessionStorage.getItem('milansetu_access_token')))
   const [items, setItems] = useState<VerificationItem[]>([])
   const [busy, setBusy] = useState<VerificationType | null>(null)
   const [otpOpen, setOtpOpen] = useState(false)
@@ -20,9 +21,19 @@ export default function VerificationPanel() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  useEffect(() => { if (sessionStorage.getItem('milansetu_access_token')) void getVerificationStatus().then(setItems).catch(e => setError(e instanceof Error ? e.message : 'Unable to load verification status.')) }, [])
+  useEffect(() => {
+    const syncAuth = () => setAuthenticated(Boolean(sessionStorage.getItem('milansetu_access_token')))
+    const timer = window.setInterval(syncAuth, 500)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!authenticated) { setItems([]); return }
+    void getVerificationStatus().then(setItems).catch(e => setError(e instanceof Error ? e.message : 'Unable to load verification status.'))
+  }, [authenticated])
+
   useEffect(() => { const timer = window.setInterval(() => setCooldown(current => Math.max(0, current - 1)), 1000); return () => window.clearInterval(timer) }, [])
-  if (!sessionStorage.getItem('milansetu_access_token')) return null
+  if (!authenticated) return null
   const statusFor = (type: VerificationType) => items.find(x => x.type === type)?.status ?? 'NotStarted'
 
   const requestEmailOtp = async () => {
