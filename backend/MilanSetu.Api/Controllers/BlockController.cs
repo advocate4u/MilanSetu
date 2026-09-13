@@ -17,8 +17,15 @@ public sealed class BlockController(MilanSetuDbContext db) : ControllerBase
         if (!TryGetUserId(out var blockerId)) return Unauthorized();
         if (blockerId == userId) return BadRequest(new { message = "You cannot block yourself." });
         if (!await db.Users.AnyAsync(x => x.Id == userId, ct)) return NotFound();
+
         if (!await db.Blocks.AnyAsync(x => x.BlockerUserId == blockerId && x.BlockedUserId == userId, ct))
             db.Blocks.Add(new Block { Id = Guid.NewGuid(), BlockerUserId = blockerId, BlockedUserId = userId });
+
+        var a = blockerId.CompareTo(userId) < 0 ? blockerId : userId;
+        var b = blockerId.CompareTo(userId) < 0 ? userId : blockerId;
+        var connection = await db.Connections.SingleOrDefaultAsync(x => x.UserAId == a && x.UserBId == b, ct);
+        if (connection is not null) db.Connections.Remove(connection);
+
         await db.SaveChangesAsync(ct);
         return NoContent();
     }

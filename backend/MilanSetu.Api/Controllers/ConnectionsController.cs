@@ -15,8 +15,13 @@ public sealed class ConnectionsController(MilanSetuDbContext db) : ControllerBas
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
+        var blockedUserIds = db.Blocks
+            .Where(x => x.BlockerUserId == userId || x.BlockedUserId == userId)
+            .Select(x => x.BlockerUserId == userId ? x.BlockedUserId : x.BlockerUserId);
+
         var items = await db.Connections.AsNoTracking()
-            .Where(x => x.UserAId == userId || x.UserBId == userId)
+            .Where(x => (x.UserAId == userId || x.UserBId == userId) &&
+                        !blockedUserIds.Contains(x.UserAId == userId ? x.UserBId : x.UserAId))
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new
             {
