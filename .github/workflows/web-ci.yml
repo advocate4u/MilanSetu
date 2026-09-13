@@ -6,6 +6,9 @@ on:
   push:
     branches: [ main ]
 
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
@@ -34,3 +37,10 @@ jobs:
           dotnet-version: 8.0.x
       - run: dotnet restore
       - run: dotnet build --configuration Release --no-restore
+      - run: dotnet test --configuration Release --no-build
+      - run: dotnet publish --configuration Release --no-build --output ./publish
+      - uses: actions/upload-artifact@v4
+        with:
+          name: milansetu-api-release
+          path: backend/MilanSetu.Api/publish
+          if-no-files-found: error
