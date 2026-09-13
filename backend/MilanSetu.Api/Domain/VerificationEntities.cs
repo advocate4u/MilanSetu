@@ -27,6 +27,9 @@ public sealed class VerificationRequest
     public DateTimeOffset RequestedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset? ReviewedAt { get; set; }
     public DateTimeOffset? VerifiedAt { get; set; }
+    public Guid? ReviewedByUserId { get; set; }
+    public Guid? ClaimedByUserId { get; set; }
+    public DateTimeOffset? ClaimedAt { get; set; }
     public string? ReviewerNotes { get; set; }
     public User User { get; set; } = null!;
 }
