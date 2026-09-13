@@ -7,6 +7,7 @@ import NotificationPanel from './NotificationPanel'
 import ProfileEditor from './ProfileEditor'
 import ProfilePhotoManager from './ProfilePhotoManager'
 import VerificationPanel from './VerificationPanel'
+import ReviewerVerificationPanel from './ReviewerVerificationPanel'
 import './styles.css'
 
 createRoot(document.getElementById('root')!).render(
@@ -15,6 +16,7 @@ createRoot(document.getElementById('root')!).render(
     <ProfileEditor />
     <ProfilePhotoManager />
     <VerificationPanel />
+    <ReviewerVerificationPanel />
     <DiscoveryPanel />
     <MessagingPanel />
     <NotificationPanel />
