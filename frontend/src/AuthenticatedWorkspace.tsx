@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AccountSessionPanel from './AccountSessionPanel'
 import ProfileEditor from './ProfileEditor'
 import ProfilePhotoManager from './ProfilePhotoManager'
 import DiscoveryPanel from './DiscoveryPanel'
@@ -28,6 +29,7 @@ export default function AuthenticatedWorkspace() {
   if (!authenticated) return null
 
   return <>
+    <AccountSessionPanel />
     <ProfileEditor />
     <ProfilePhotoManager />
     <DiscoveryPanel />
