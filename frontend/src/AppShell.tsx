@@ -13,9 +13,13 @@ export default function AppShell() {
 
   useEffect(() => {
     const sync = () => setAuthenticated(hasSession())
-    window.addEventListener('milansetu:auth-changed', sync)
     sync()
-    return () => window.removeEventListener('milansetu:auth-changed', sync)
+    window.addEventListener('milansetu:auth-changed', sync)
+    const timer = window.setInterval(sync, 250)
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('milansetu:auth-changed', sync)
+    }
   }, [])
 
   return authenticated ? <AuthenticatedWorkspace /> : <App />

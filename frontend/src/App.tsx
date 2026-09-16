@@ -36,7 +36,16 @@ function App() {
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault(); setBusy(true); setMessage('')
-    try { const result = await submitAuth(mode, email, password); if (mode === 'login') sessionStorage.setItem('milansetu_access_token', result.accessToken); setMessage(mode === 'register' ? 'Account created. You can now log in.' : 'Signed in successfully.'); if (mode === 'register') setMode('login') }
+    try {
+      const result = await submitAuth(mode, email, password)
+      if (mode === 'login') {
+        if (!result.accessToken) throw new Error('Login succeeded but no access token was returned.')
+        sessionStorage.setItem('milansetu_access_token', result.accessToken)
+        window.dispatchEvent(new Event('milansetu:auth-changed'))
+      }
+      setMessage(mode === 'register' ? 'Account created. You can now log in.' : 'Signed in successfully.')
+      if (mode === 'register') setMode('login')
+    }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Something went wrong.') }
     finally { setBusy(false) }
   }
