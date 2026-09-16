@@ -1,0 +1,18 @@
+* { box-sizing: border-box; }
+:root { font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #18212f; background: #f6f8fb; line-height: 1.5; }
+body { margin: 0; min-width: 320px; background: #f6f8fb; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .6; }
+.app-shell { min-height: 100vh; }
+.network-banner { position: sticky; top: 0; z-index: 100; padding: .65rem 1rem; text-align: center; background: #fff3cd; color: #664d03; border-bottom: 1px solid #ffecb5; font-size: .9rem; }
+.section-card { width: min(100% - 2rem, 1100px); margin: 1rem auto; padding: 1.15rem; background: #fff; border: 1px solid #e4e9f0; border-radius: 16px; box-shadow: 0 3px 18px rgba(24,33,47,.05); }
+.section-card-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: .9rem; }
+.section-card h2 { margin: 0; font-size: 1.15rem; }
+.section-card p { margin: .25rem 0 0; color: #637083; font-size: .9rem; }
+.loading-state, .empty-state { display: flex; align-items: center; justify-content: center; gap: .6rem; min-height: 90px; color: #637083; text-align: center; }
+.empty-state { flex-direction: column; padding: 1.25rem; border: 1px dashed #ccd4df; border-radius: 12px; }
+.empty-state strong { color: #263244; }
+.spinner { width: 18px; height: 18px; border: 2px solid #ccd4df; border-top-color: currentColor; border-radius: 50%; animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (max-width: 640px) { .section-card { width: min(100% - 1rem, 1100px); margin: .5rem auto; padding: .9rem; border-radius: 12px; } }
