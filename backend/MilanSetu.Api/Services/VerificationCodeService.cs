@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
 using MilanSetu.Api.Domain;
@@ -9,24 +11,79 @@ public interface IVerificationCodeSender
     Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken);
 }
 
-public sealed class VerificationCodeSender(IHostEnvironment environment, ILogger<VerificationCodeSender> logger) : IVerificationCodeSender
+public sealed class VerificationCodeSender(
+    IHostEnvironment environment,
+    IConfiguration configuration,
+    ILogger<VerificationCodeSender> logger) : IVerificationCodeSender
 {
-    public Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken)
+    public async Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken)
     {
-        if (environment.IsDevelopment())
+        if (type == VerificationType.Mobile)
         {
-            logger.LogInformation("Development verification code generated for {Type} to masked destination {Destination}: {Code}",
-                type, Mask(destination), code);
-            return Task.CompletedTask;
+            // Mobile OTP delivery is intentionally left disabled until the mobile provider is selected.
+            throw new InvalidOperationException("Mobile verification delivery is not configured yet.");
         }
 
-        throw new InvalidOperationException("No verification delivery provider is configured for this environment.");
+        if (type != VerificationType.Email)
+            throw new InvalidOperationException("Unsupported verification delivery type.");
+
+        var host = configuration["Email:Smtp:Host"];
+        var username = configuration["Email:Smtp:Username"];
+        var password = configuration["Email:Smtp:Password"];
+        var fromAddress = configuration["Email:Smtp:FromAddress"];
+
+        if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) ||
+            string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(fromAddress))
+        {
+            if (environment.IsDevelopment())
+            {
+                logger.LogInformation(
+                    "Development email verification code generated for masked destination {Destination}: {Code}",
+                    Mask(destination), code);
+                return;
+            }
+
+            throw new InvalidOperationException("Email SMTP delivery is not configured for this environment.");
+        }
+
+        if (!MailAddress.TryCreate(destination, out var recipient))
+            throw new InvalidOperationException("The configured email address is invalid.");
+        if (!MailAddress.TryCreate(fromAddress, out var senderAddress))
+            throw new InvalidOperationException("Email:Smtp:FromAddress is invalid.");
+
+        var port = configuration.GetValue("Email:Smtp:Port", 587);
+        var enableSsl = configuration.GetValue("Email:Smtp:EnableSsl", true);
+        var fromName = configuration["Email:Smtp:FromName"] ?? "MilanSetu";
+
+        using var message = new MailMessage
+        {
+            From = new MailAddress(senderAddress.Address, fromName),
+            Subject = "Your MilanSetu verification code",
+            Body = $"Your MilanSetu verification code is {code}. It expires in 10 minutes. If you did not request this code, you can ignore this email.",
+            IsBodyHtml = false
+        };
+        message.To.Add(recipient);
+
+        using var client = new SmtpClient(host, port)
+        {
+            EnableSsl = enableSsl,
+            DeliveryMethod = SmtpDeliveryMethod.Network,
+            UseDefaultCredentials = false,
+            Credentials = new NetworkCredential(username, password)
+        };
+
+        await client.SendMailAsync(message, cancellationToken);
+        logger.LogInformation("Email verification code sent to masked destination {Destination}.", Mask(destination));
     }
 
     private static string Mask(string value)
     {
-        if (value.Length <= 4) return "***";
-        return $"{value[..Math.Min(2, value.Length)]}***{value[^2..]}";
+        var at = value.IndexOf('@');
+        if (at <= 0) return "***";
+        var local = value[..at];
+        var domain = value[at..];
+        var visible = local.Length <= 2 ? local[..1] : local[..2];
+        return $"{visible}***{domain}";
     }
 }
 
