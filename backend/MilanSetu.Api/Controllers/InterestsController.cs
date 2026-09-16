@@ -37,7 +37,15 @@ public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
         var interest = new Interest { Id = Guid.NewGuid(), SenderUserId = userId, ReceiverUserId = target.UserId };
         db.Interests.Add(interest);
         AddNotification(target.UserId, NotificationType.InterestReceived, "New interest", "Someone expressed interest in your profile.", userId, interest.Id);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // The unique (SenderUserId, ReceiverUserId) index is the final concurrency guard.
+            return Conflict(new { message = "Interest already exists." });
+        }
         return Ok(new { id = interest.Id, status = interest.Status.ToString() });
     }
 
@@ -72,10 +80,20 @@ public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
         interest.RespondedAt = DateTimeOffset.UtcNow;
         var a = interest.SenderUserId.CompareTo(interest.ReceiverUserId) < 0 ? interest.SenderUserId : interest.ReceiverUserId;
         var b = interest.SenderUserId.CompareTo(interest.ReceiverUserId) < 0 ? interest.ReceiverUserId : interest.SenderUserId;
+        if (a == b) return BadRequest(new { message = "Invalid connection participants." });
+
         if (!await db.Connections.AnyAsync(x => x.UserAId == a && x.UserBId == b, ct))
             db.Connections.Add(new Connection { Id = Guid.NewGuid(), UserAId = a, UserBId = b });
         AddNotification(interest.SenderUserId, NotificationType.InterestAccepted, "Interest accepted", "Your interest was accepted. You can now connect and chat.", userId, interest.Id);
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            await db.SaveChangesAsync(ct);
+        }
+        catch (DbUpdateException)
+        {
+            // The unique normalized participant-pair index protects against concurrent accepts.
+            return Conflict(new { message = "The connection was updated by another request. Refresh and try again." });
+        }
         return Ok(new { status = "Accepted", connectionCreated = true });
     }
 
