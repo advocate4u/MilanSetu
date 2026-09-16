@@ -1,0 +1,21 @@
+.account-session-panel {
+  max-width: 1180px;
+  margin: 30px auto 10px;
+  padding: 22px 26px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  border: 1px solid #eaded7;
+  border-radius: 20px;
+  background: #fffdfa;
+  box-shadow: 0 14px 40px rgba(60,42,32,.05);
+}
+.account-session-panel h2 { margin: 0 0 6px; font-size: 24px; letter-spacing: -.03em; }
+.account-session-panel p:not(.eyebrow):not(.discovery-error) { margin: 0; color: #716965; line-height: 1.5; }
+.account-session-panel .eyebrow { margin-bottom: 8px; }
+.account-session-panel button { flex: 0 0 auto; }
+@media (max-width: 800px) {
+  .account-session-panel { margin: 20px 12px 10px; padding: 18px; align-items: flex-start; flex-direction: column; }
+  .account-session-panel button { width: 100%; }
+}
