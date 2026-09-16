@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import AccountSessionPanel from './AccountSessionPanel'
 import ProfileEditor from './ProfileEditor'
 import ProfilePhotoManager from './ProfilePhotoManager'
 import DiscoveryPanel from './DiscoveryPanel'
@@ -20,5 +21,14 @@ export default function AuthenticatedWorkspace() {
     return () => { window.clearInterval(timer); window.removeEventListener('milansetu:auth-changed', sync) }
   }, [])
   if (!authenticated) return null
-  return <><ProfileEditor /><ProfilePhotoManager /><DiscoveryPanel /><IncomingInterestsPanel /><ConnectionsPanel /><MessagingPanel /><NotificationPanel /></>
+  return <>
+    <AccountSessionPanel />
+    <ProfileEditor />
+    <ProfilePhotoManager />
+    <DiscoveryPanel />
+    <IncomingInterestsPanel />
+    <ConnectionsPanel />
+    <MessagingPanel />
+    <NotificationPanel />
+  </>
 }
