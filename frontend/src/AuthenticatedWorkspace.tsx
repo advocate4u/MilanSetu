@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import ProfileEditor from './ProfileEditor'
 import ProfilePhotoManager from './ProfilePhotoManager'
 import DiscoveryPanel from './DiscoveryPanel'
+import IncomingInterestsPanel from './IncomingInterestsPanel'
 import MessagingPanel from './MessagingPanel'
 import NotificationPanel from './NotificationPanel'
 import ConnectionsPanel from './ConnectionsPanel'
@@ -19,5 +20,5 @@ export default function AuthenticatedWorkspace() {
     return () => { window.clearInterval(timer); window.removeEventListener('milansetu:auth-changed', sync) }
   }, [])
   if (!authenticated) return null
-  return <><ProfileEditor /><ProfilePhotoManager /><DiscoveryPanel /><ConnectionsPanel /><MessagingPanel /><NotificationPanel /></>
+  return <><ProfileEditor /><ProfilePhotoManager /><DiscoveryPanel /><IncomingInterestsPanel /><ConnectionsPanel /><MessagingPanel /><NotificationPanel /></>
 }
