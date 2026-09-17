@@ -6,6 +6,13 @@ export default defineConfig({
   // Relative asset paths work both locally and when hosted under /MilanSetu/ on GitHub Pages.
   base: './',
   server: {
-    port: 5173
-  }
+    port: 5173,
+    proxy: {
+      '/api': {
+        target: 'https://localhost:7001',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
 })
