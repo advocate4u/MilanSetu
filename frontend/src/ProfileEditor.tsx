@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
 import { getMyProfile, saveBasicProfile, saveExtendedProfile, type ProfileData } from './profileApi'
+import { calculateProfileAge, validatePartnerAgeRange } from './profileValidation'
 
 const initial = {
   displayName: '', dateOfBirth: '', gender: 'Other', accountType: 'Individual', maritalStatus: '', motherTongue: '', bio: '', visibility: 'MembersOnly',
@@ -21,17 +22,6 @@ function fromProfile(p: ProfileData): FormState {
   }
 }
 
-function calculateAge(dateOfBirth: string) {
-  if (!dateOfBirth) return null
-  const birth = new Date(`${dateOfBirth}T00:00:00`)
-  if (Number.isNaN(birth.getTime())) return null
-  const today = new Date()
-  let age = today.getFullYear() - birth.getFullYear()
-  const beforeBirthday = today.getMonth() < birth.getMonth() || (today.getMonth() === birth.getMonth() && today.getDate() < birth.getDate())
-  if (beforeBirthday) age -= 1
-  return age
-}
-
 export default function ProfileEditor() {
   const [form, setForm] = useState<FormState>(initial)
   const [loading, setLoading] = useState(true)
@@ -42,7 +32,7 @@ export default function ProfileEditor() {
   useEffect(() => { getMyProfile().then(p => setForm(fromProfile(p))).catch(e => { if (!(e instanceof Error && e.message.includes('not been created'))) setError(e instanceof Error ? e.message : 'Unable to load profile.') }).finally(() => setLoading(false)) }, [])
   const set = (key: keyof FormState, value: string) => setForm(current => ({ ...current, [key]: value }))
 
-  const age = useMemo(() => calculateAge(form.dateOfBirth), [form.dateOfBirth])
+  const age = useMemo(() => calculateProfileAge(form.dateOfBirth), [form.dateOfBirth])
   const completeness = useMemo(() => {
     const checks = [
       Boolean(form.displayName.trim()), Boolean(form.dateOfBirth), Boolean(form.gender), Boolean(form.maritalStatus.trim()),
@@ -58,10 +48,8 @@ export default function ProfileEditor() {
     if (!form.dateOfBirth) return 'Date of birth is required.'
     if (age == null || age < 18) return 'You must be at least 18 years old to create a profile.'
     if (age > 120) return 'Please enter a valid date of birth.'
-    if (form.minPartnerAge && Number(form.minPartnerAge) < 18) return 'Minimum partner age must be at least 18.'
-    if (form.maxPartnerAge && Number(form.maxPartnerAge) < 18) return 'Maximum partner age must be at least 18.'
-    if (form.minPartnerAge && form.maxPartnerAge && Number(form.minPartnerAge) > Number(form.maxPartnerAge)) return 'Minimum partner age cannot be greater than maximum partner age.'
-    if (form.bio.length > 2000) return 'About me must be 2000 characters or fewer.'
+    const partnerAgeError = validatePartnerAgeRange(form.minPartnerAge, form.maxPartnerAge)
+    if (partnerAgeError) return partnerAgeError
     return ''
   }
 
