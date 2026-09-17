@@ -16,6 +16,11 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  # Configure this as a GitHub Actions repository variable before deploying the production UI.
+  # Example value: https://api.example.com
+  VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -25,6 +30,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Validate production API configuration
+        run: |
+          if [ -z "$VITE_API_BASE_URL" ]; then
+            echo "VITE_API_BASE_URL is not configured. Add it as a GitHub Actions repository variable before deploying MilanSetu Pages."
+            exit 1
+          fi
+          case "$VITE_API_BASE_URL" in
+            https://*) ;;
+            *) echo "VITE_API_BASE_URL must use HTTPS in production."; exit 1 ;;
+          esac
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,7 +65,6 @@ jobs:
         with:
           path: frontend/dist
 
-      # Keep deployment in the same job as artifact creation so the Pages artifact is directly available.
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
