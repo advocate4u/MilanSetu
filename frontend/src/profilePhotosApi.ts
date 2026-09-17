@@ -14,6 +14,7 @@ async function request(path: string, options: RequestInit = {}) {
 export function getProfilePhotos() { return request('/api/profile/photos') as Promise<ProfilePhoto[]> }
 export function uploadProfilePhoto(file: File) { const form = new FormData(); form.append('file', file); return request('/api/profile/photos', { method: 'POST', body: form }) as Promise<ProfilePhoto> }
 export function deleteProfilePhoto(fileName: string) { return request(`/api/profile/photos/${encodeURIComponent(fileName)}`, { method: 'DELETE' }) }
+export function reorderProfilePhotos(fileNames: string[]) { return request('/api/profile/photos/order', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileNames }) }) }
 export async function loadProfilePhoto(photo: ProfilePhoto) {
   const response = await fetch(`${apiBaseUrl}${photo.url}`, { credentials: 'include', headers: authHeaders() })
   if (!response.ok) throw new Error('Unable to load the private photo.')
