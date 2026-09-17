@@ -17,6 +17,7 @@ export default function ConnectionsPanel() {
   const [incoming, setIncoming] = useState<IncomingInterest[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState<string | null>(null)
 
   const load = async () => {
     if (!sessionStorage.getItem('milansetu_access_token')) return
@@ -36,16 +37,28 @@ export default function ConnectionsPanel() {
     }
   }
 
-  useEffect(() => { void load() }, [])
+  useEffect(() => {
+    void load()
+    const onChanged = () => void load()
+    window.addEventListener('milansetu:connections-changed', onChanged)
+    return () => window.removeEventListener('milansetu:connections-changed', onChanged)
+  }, [])
 
   const respond = async (id: string, accept: boolean) => {
+    if (busyId) return
+    setBusyId(id)
     setError('')
     try {
       if (accept) await acceptInterest(id)
       else await declineInterest(id)
+      setIncoming(current => current.filter(item => item.id !== id))
+      window.dispatchEvent(new Event('milansetu:connections-changed'))
+      window.dispatchEvent(new Event('milansetu:notifications-changed'))
       await load()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to respond to the interest.')
+    } finally {
+      setBusyId(null)
     }
   }
 
@@ -57,22 +70,23 @@ export default function ConnectionsPanel() {
       <button className="secondary-button" onClick={() => void load()} disabled={loading}>{loading ? 'Refreshing…' : 'Refresh'}</button>
     </div>
     {error && <p className="discovery-error" role="alert">{error}</p>}
+    {loading && connections.length === 0 && incoming.length === 0 ? <p role="status" aria-live="polite">Loading connections…</p> : null}
 
-    {incoming.length > 0 && <div className="discovery-section">
-      <h3>Incoming interests</h3>
+    {incoming.length > 0 && <div className="discovery-section" aria-live="polite">
+      <h3>Incoming interests ({incoming.length})</h3>
       <div className="discovery-grid">
         {incoming.map(item => <article className="discovery-card" key={item.id}>
-          <div className="discovery-avatar">♥</div>
+          <div className="discovery-avatar" aria-hidden="true">♥</div>
           <h3>Someone is interested</h3>
           <p>Interest received {new Date(item.createdAt).toLocaleDateString()}</p>
           <div className="discovery-actions">
-            <button className="primary-button" onClick={() => void respond(item.id, true)}>Accept & connect</button>
-            <button className="secondary-button" onClick={() => void respond(item.id, false)}>Decline</button>
+            <button className="primary-button" disabled={busyId !== null} onClick={() => void respond(item.id, true)}>{busyId === item.id ? 'Connecting…' : 'Accept & connect'}</button>
+            <button className="secondary-button" disabled={busyId !== null} onClick={() => void respond(item.id, false)}>{busyId === item.id ? 'Working…' : 'Decline'}</button>
           </div>
         </article>)}
       </div>
     </div>}
 
-    {!loading && connections.length === 0 ? <div className="discovery-empty"><h3>No mutual connections yet</h3><p>When interest is mutual, the connection will appear here.</p></div> : <div className="discovery-grid">{connections.map(connection => <article className="discovery-card" key={connection.id}><div className="discovery-avatar">✓</div><h3>Mutual connection</h3><p>Connection created {new Date(connection.createdAt).toLocaleDateString()}</p><div className="discovery-actions"><button className="primary-button" onClick={() => openMessaging(connection.otherUserId)}>Open messages</button></div></article>)}</div>}
+    {!loading && connections.length === 0 ? <div className="discovery-empty"><h3>No mutual connections yet</h3><p>When interest is mutual, the connection will appear here.</p></div> : <div className="discovery-grid">{connections.map(connection => <article className="discovery-card" key={connection.id}><div className="discovery-avatar" aria-hidden="true">✓</div><h3>Mutual connection</h3><p>Connection created {new Date(connection.createdAt).toLocaleDateString()}</p><div className="discovery-actions"><button className="primary-button" onClick={() => openMessaging(connection.otherUserId)}>Open messages</button></div></article>)}</div>}
   </section>
 }
