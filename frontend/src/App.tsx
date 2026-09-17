@@ -1,6 +1,6 @@
 import { FormEvent, useMemo, useState } from 'react'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7001'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? (import.meta.env.DEV ? '' : 'https://localhost:7001')
 type AuthMode = 'login' | 'register'
 type DemoProfile = { id: number; name: string; age: number; city: string; profession: string; education: string; bio: string; tags: string[] }
 type DemoMessage = { id: number; sender: 'me' | 'them'; body: string; time: string }
@@ -18,9 +18,14 @@ const starterMessages: DemoMessage[] = [
 ]
 
 async function submitAuth(mode: AuthMode, email: string, password: string) {
-  const response = await fetch(`${apiBaseUrl}/api/auth/${mode}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password }) })
+  let response: Response
+  try {
+    response = await fetch(`${apiBaseUrl}/api/auth/${mode}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ email, password }) })
+  } catch {
+    throw new Error('Cannot reach the MilanSetu API. Start the ASP.NET Core API on https://localhost:7001 and reload the page. If the API is already running, check its HTTPS development certificate.')
+  }
   const data = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(data.message ?? 'Unable to complete the request.')
+  if (!response.ok) throw new Error(data.message ?? data.error ?? `Unable to ${mode === 'register' ? 'create the account' : 'sign in'} (HTTP ${response.status}).`)
   return data
 }
 
