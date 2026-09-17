@@ -14,5 +14,24 @@ button:disabled { cursor: not-allowed; opacity: .6; }
 .empty-state { flex-direction: column; padding: 1.25rem; border: 1px dashed #ccd4df; border-radius: 12px; }
 .empty-state strong { color: #263244; }
 .spinner { width: 18px; height: 18px; border: 2px solid #ccd4df; border-top-color: currentColor; border-radius: 50%; animation: spin .7s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-@media (max-width: 640px) { .section-card { width: min(100% - 1rem, 1100px); margin: .5rem auto; padding: .9rem; border-radius: 12px; } }
+.profile-editor { width: min(100% - 2rem, 1100px); margin: 1rem auto 3rem; }
+.profile-editor-head { padding: 1.4rem; background: #fff; border: 1px solid #e4e9f0; border-radius: 16px 16px 0 0; }
+.profile-editor-head h2 { margin: .1rem 0 .35rem; font-size: clamp(1.35rem, 3vw, 1.8rem); }
+.eyebrow { margin: 0; color: #637083; font-size: .75rem; font-weight: 700; letter-spacing: .08em; }
+.profile-completeness { padding: 1rem 1.4rem; background: #fff; border: 1px solid #e4e9f0; border-top: 0; }
+.profile-completeness-row { display: flex; justify-content: space-between; gap: 1rem; font-size: .9rem; }
+.profile-completeness-track { height: 8px; margin-top: .55rem; overflow: hidden; background: #e7ebf1; border-radius: 99px; }
+.profile-completeness-value { height: 100%; background: currentColor; border-radius: inherit; transition: width .25s ease; }
+.profile-completeness p { margin: .45rem 0 0; color: #637083; font-size: .8rem; }
+.profile-editor form { padding: 1.4rem; background: #fff; border: 1px solid #e4e9f0; border-top: 0; border-radius: 0 0 16px 16px; }
+.profile-editor fieldset { margin: 0 0 1.2rem; padding: 1rem; border: 1px solid #e4e9f0; border-radius: 12px; }
+.profile-editor legend { padding: 0 .45rem; font-weight: 700; }
+.profile-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .9rem; }
+.profile-editor label { display: flex; flex-direction: column; gap: .35rem; margin-bottom: .9rem; color: #334155; font-size: .86rem; font-weight: 600; }
+.profile-editor input, .profile-editor select, .profile-editor textarea { width: 100%; padding: .65rem .7rem; border: 1px solid #ccd4df; border-radius: 9px; background: #fff; color: #18212f; outline: none; }
+.profile-editor input:focus, .profile-editor select:focus, .profile-editor textarea:focus { border-color: #64748b; box-shadow: 0 0 0 3px rgba(100,116,139,.12); }
+.profile-error, .profile-success { padding: .7rem .8rem; border-radius: 9px; font-size: .9rem; }
+.profile-error { background: #fff1f2; border: 1px solid #fecdd3; color: #9f1239; }
+.profile-success { background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; }
+.primary-button { padding: .7rem 1rem; border: 0; border-radius: 9px; background: #18212f; color: #fff; font-weight: 700; }
+@media (max-width: 640px) { .section-card { width: min(100% - 1rem, 1100px); margin: .5rem auto; padding: .9rem; border-radius: 12px; } .profile-editor { width: min(100% - 1rem, 1100px); margin: .5rem auto 2rem; } .profile-editor-head, .profile-editor form { padding: .9rem; } .profile-fields { grid-template-columns: 1fr; gap: .2rem; } }
