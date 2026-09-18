@@ -206,7 +206,7 @@ app.Use(async (context, next) =>
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
     context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none';";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net; img-src 'self' data: https:; frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';";
     await next();
 });
 app.UseCors("Web");
