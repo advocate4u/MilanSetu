@@ -20,6 +20,7 @@ export default function MessagingPanel() {
   const [error, setError] = useState('')
   const [sending, setSending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [messagingEnabled, setMessagingEnabled] = useState(true)
   const requestVersion = useRef(0)
   const selectedIdRef = useRef<string | null>(null)
 
@@ -55,6 +56,7 @@ export default function MessagingPanel() {
   }
 
   useEffect(() => {
+    void (async () => { try { const r=await fetch('/api/admin/platform-settings'); if (r.ok) { const s=await r.json(); setMessagingEnabled(s.messagingEnabled !== false) } } catch {} })()
     void loadConversations()
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
@@ -141,6 +143,7 @@ export default function MessagingPanel() {
   }
 
   if (!sessionStorage.getItem('milansetu_access_token')) return null
+  if (!messagingEnabled) return <section className="messaging-panel" aria-label="Messages"><div className="messaging-header"><div><p className="eyebrow">MESSAGES</p><h2>Messaging unavailable</h2><p>Messaging is currently disabled by the administrator.</p></div></div></section>
 
   return <section className="messaging-panel" aria-label="Messages">
     <div className="messaging-header">
