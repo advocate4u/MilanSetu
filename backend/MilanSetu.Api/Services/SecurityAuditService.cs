@@ -98,6 +98,9 @@ public sealed class SecurityAuditService(IUnitOfWork unitOfWork, IHttpContextAcc
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<LoginSession?> GetSessionEntityAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
+        => await Sessions.Query(false).SingleOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
+
     public async Task TouchSessionAsync(Guid sessionId, CancellationToken cancellationToken)
     {
         var session = await Sessions.SingleOrDefaultAsync(x => x.Id == sessionId, cancellationToken);
