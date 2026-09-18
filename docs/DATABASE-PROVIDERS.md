@@ -7,43 +7,21 @@ MilanSetu keeps one EF Core domain model and one set of table names/relationship
 - `PostgreSQL` / `Postgres`
 - `MySQL`
 
-Set `Database:Provider=PostgreSQL` for Npgsql or `Database:Provider=MySQL` for Pomelo MySQL.
-
-The connection string remains `ConnectionStrings:DefaultConnection`.
-
-## Example configuration
-
-PostgreSQL:
-```
-Database__Provider=PostgreSQL
-ConnectionStrings__DefaultConnection=Host=localhost;Port=5432;Database=milansetu;Username=milansetu;Password=...
-```
-
-MySQL 8:
-```
-Database__Provider=MySQL
-ConnectionStrings__DefaultConnection=Server=localhost;Port=3306;Database=milansetu;User=milansetu;Password=...
-```
-
-The API targets MySQL 8.x through Pomelo's EF Core provider.
+Set `Database:Provider=PostgreSQL` for Npgsql or `Database:Provider=MySQL` for Pomelo MySQL. The connection string remains `ConnectionStrings:DefaultConnection`.
 
 ## Docker
 
-PostgreSQL:
-```
-DATABASE_PROVIDER=PostgreSQL \
-DATABASE_CONNECTION_STRING='Host=postgres;Port=5432;Database=milansetu;Username=milansetu;Password=change-me-local-only' \
-docker compose --profile postgres up --build
+Existing PostgreSQL development flow:
+```bash
+docker compose up --build
 ```
 
-MySQL:
-```
-DATABASE_PROVIDER=MySQL \
-DATABASE_CONNECTION_STRING='Server=mysql;Port=3306;Database=milansetu;User=milansetu;Password=change-me-local-only' \
-docker compose --profile mysql up --build
+MySQL development flow:
+```bash
+docker compose -f docker-compose.mysql.yml up --build
 ```
 
-The compose file keeps PostgreSQL and MySQL as separate profiles so the developer can choose one without starting both database servers.
+The MySQL compose file exposes the API on port 7002 so the PostgreSQL and MySQL stacks can be run independently.
 
 ## Schema compatibility
 
@@ -51,8 +29,6 @@ The same `MilanSetuDbContext` and domain entities are used for both providers. E
 
 Provider-specific migrations must still be generated and reviewed separately because EF Core migrations contain provider-specific SQL/type mappings. Do not copy a PostgreSQL migration and assume it is valid MySQL SQL.
 
-For a fresh environment, generate migrations using the selected provider and review the resulting SQL/schema before applying it. Existing production data must be backed up before any schema change.
-
 ## Repository pattern
 
-Application services can depend on `IUnitOfWork`/`IRepository<TEntity>` rather than coupling simple persistence operations to EF Core. Complex EF queries may remain context-based where includes/projections are clearer. This keeps the repository abstraction useful instead of forcing every query through an overly generic API.
+Application services can depend on `IUnitOfWork`/`IRepository<TEntity>` rather than coupling simple persistence operations to EF Core. Complex EF queries may remain context-based where includes/projections are clearer.
