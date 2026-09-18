@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@microsoft/signalr": "8.0.8",
+    "@microsoft/signalr": "8.0.29",
     "react": "latest",
     "react-dom": "latest"
   },
