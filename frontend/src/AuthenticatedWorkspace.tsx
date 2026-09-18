@@ -18,6 +18,7 @@ import PrivacyPanel from './PrivacyPanel'
 import SafetyPanel from './SafetyPanel'
 import AdminAnalyticsPanel from './AdminAnalyticsPanel'
 import AdminMetricsPanel from './AdminMetricsPanel'
+import { startRealtime, stopRealtime } from './realtime'
 
 const accessTokenKey = 'milansetu_access_token'
 function isAuthenticated() { return Boolean(sessionStorage.getItem(accessTokenKey)) }
@@ -31,6 +32,10 @@ export default function AuthenticatedWorkspace() {
     window.addEventListener('milansetu:auth-changed', sync)
     return () => { window.clearInterval(timer); window.removeEventListener('milansetu:auth-changed', sync) }
   }, [])
+  useEffect(() => {
+    if (authenticated) { void startRealtime() } else { void stopRealtime() }
+    return () => { void stopRealtime() }
+  }, [authenticated])
   if (!authenticated) return null
   return <>
     <AccountSessionPanel />

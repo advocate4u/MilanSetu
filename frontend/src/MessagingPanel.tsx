@@ -85,11 +85,26 @@ export default function MessagingPanel() {
       })()
     }
     const connectionChanged = () => { void loadConversations() }
+    const realtimeNotification = (event: Event) => {
+      const detail = (event as CustomEvent<{ type?: string; payload?: { conversationId?: string } }>).detail
+      if (detail?.type !== 'message-received') return
+      void (async () => {
+        const next = await getConversations()
+        setConversations(next)
+        const conversationId = detail.payload?.conversationId
+        if (conversationId && conversationId === selectedIdRef.current) {
+          const current = next.find(x => x.id === conversationId)
+          if (current) await loadMessages(current)
+        }
+      })()
+    }
     window.addEventListener('milansetu:open-conversation', handler)
     window.addEventListener('milansetu:connections-changed', connectionChanged)
+    window.addEventListener('milansetu:realtime-notification', realtimeNotification)
     return () => {
       window.removeEventListener('milansetu:open-conversation', handler)
       window.removeEventListener('milansetu:connections-changed', connectionChanged)
+      window.removeEventListener('milansetu:realtime-notification', realtimeNotification)
       window.clearInterval(timer)
     }
   }, [])

@@ -36,15 +36,18 @@ export default function NotificationPanel() {
     const onChanged = () => void refresh()
     const onAuthChanged = () => void refresh()
     const onAuthExpired = () => { setItems([]); setOpen(false) }
+    const onRealtimeNotification = () => { void refresh() }
     window.addEventListener('milansetu:notifications-changed', onChanged)
     window.addEventListener('milansetu:auth-changed', onAuthChanged)
     window.addEventListener('milansetu:auth-expired', onAuthExpired)
+    window.addEventListener('milansetu:realtime-notification', onRealtimeNotification)
     const timer = window.setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, REFRESH_INTERVAL_MS)
     return () => {
       window.clearInterval(timer)
       window.removeEventListener('milansetu:notifications-changed', onChanged)
       window.removeEventListener('milansetu:auth-changed', onAuthChanged)
       window.removeEventListener('milansetu:auth-expired', onAuthExpired)
+      window.removeEventListener('milansetu:realtime-notification', onRealtimeNotification)
     }
   }, [refresh])
 

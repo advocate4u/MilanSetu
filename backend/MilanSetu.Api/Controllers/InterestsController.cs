@@ -9,7 +9,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/interests")]
-public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
+public sealed class InterestsController(MilanSetuDbContext db, IRealtimeNotificationService realtime) : ControllerBase
 {
     [HttpPost("{profileId:guid}")]
     public async Task<IActionResult> Send(Guid profileId, CancellationToken ct)
@@ -29,6 +29,7 @@ public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
                 existing.RespondedAt = null;
                 AddNotification(target.UserId, NotificationType.InterestReceived, "New interest", "Someone expressed interest in your profile.", userId, existing.Id);
                 await db.SaveChangesAsync(ct);
+                await realtime.PublishAsync(target.UserId, "interest-received", new { interestId = existing.Id, senderUserId = userId }, ct);
                 return Ok(new { id = existing.Id, status = existing.Status.ToString() });
             }
             return Conflict(new { message = "Interest already exists.", status = existing.Status.ToString() });
@@ -46,6 +47,7 @@ public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
             // The unique (SenderUserId, ReceiverUserId) index is the final concurrency guard.
             return Conflict(new { message = "Interest already exists." });
         }
+        await realtime.PublishAsync(target.UserId, "interest-received", new { interestId = interest.Id, senderUserId = userId }, ct);
         return Ok(new { id = interest.Id, status = interest.Status.ToString() });
     }
 
@@ -94,6 +96,8 @@ public sealed class InterestsController(MilanSetuDbContext db) : ControllerBase
             // The unique normalized participant-pair index protects against concurrent accepts.
             return Conflict(new { message = "The connection was updated by another request. Refresh and try again." });
         }
+        await realtime.PublishAsync(interest.SenderUserId, "interest-accepted", new { interestId = interest.Id, receiverUserId = userId }, ct);
+        await realtime.PublishAsync(userId, "connection-created", new { otherUserId = interest.SenderUserId }, ct);
         return Ok(new { status = "Accepted", connectionCreated = true });
     }
 
