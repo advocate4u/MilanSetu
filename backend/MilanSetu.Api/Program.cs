@@ -19,6 +19,8 @@ builder.Services.AddSingleton<VerificationChallengeService>();
 builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
 builder.Services.AddSingleton<IVerificationDocumentStorage, FileSystemVerificationDocumentStorage>();
 builder.Services.AddSingleton<IVerificationDocumentScanner, QuarantineOnlyVerificationDocumentScanner>();
+builder.Services.AddSingleton<ModerationAutomationService>();
+builder.Services.AddSingleton<RequestMetricsService>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (!string.IsNullOrWhiteSpace(connectionString))
@@ -102,6 +104,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 var app = builder.Build();
 
 app.UseForwardedHeaders();
+app.UseMiddleware<RequestMetricsMiddleware>();
 if (isProduction)
 {
     app.UseExceptionHandler(exceptionApp => exceptionApp.Run(async context =>
