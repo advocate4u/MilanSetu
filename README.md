@@ -11,7 +11,7 @@ Android is intentionally deferred. The first product is the responsive web appli
 - Frontend: React + TypeScript + Vite
 - Backend: ASP.NET Core Web API + C#
 - Database: PostgreSQL + Entity Framework Core
-- Real-time messaging: SignalR (later milestone)
+- Real-time messaging: SignalR with authenticated user channels and reconnect fallback
 
 ## Product principles
 
@@ -60,4 +60,4 @@ Administrators have growth/safety analytics and in-process API runtime metrics. 
 
 Report intake uses automated risk signals for scam/impersonation/payment/credential indicators and repeated reports. High-risk cases enter the reviewer queue as `Reviewing`; automated scoring does not suspend or ban accounts.
 
-Notification badges use a server-side unread summary and refresh while the page is visible. 
+Notification badges use a server-side unread summary, refresh while the page is visible, and react to live SignalR events. Messaging also keeps polling as a resilience fallback. 
