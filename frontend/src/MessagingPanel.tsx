@@ -21,6 +21,7 @@ export default function MessagingPanel() {
   const [sending, setSending] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const requestVersion = useRef(0)
+  const selectedIdRef = useRef<string | null>(null)
 
   const loadConversations = async (showBusy = false) => {
     if (!sessionStorage.getItem('milansetu_access_token')) return
@@ -40,6 +41,7 @@ export default function MessagingPanel() {
   const loadMessages = async (conversation: Conversation) => {
     const version = ++requestVersion.current
     setSelected(conversation)
+    selectedIdRef.current = conversation.id
     setLoading(true)
     setError('')
     try {
@@ -54,6 +56,15 @@ export default function MessagingPanel() {
 
   useEffect(() => {
     void loadConversations()
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadConversations()
+        if (selectedIdRef.current) {
+          const current = conversations.find(x => x.id === selectedIdRef.current)
+          if (current) void loadMessages(current)
+        }
+      }
+    }, 15000)
     const handler = (event: Event) => {
       const id = (event as CustomEvent<string>).detail
       if (!id) return
@@ -79,6 +90,7 @@ export default function MessagingPanel() {
     return () => {
       window.removeEventListener('milansetu:open-conversation', handler)
       window.removeEventListener('milansetu:connections-changed', connectionChanged)
+      window.clearInterval(timer)
     }
   }, [])
 
