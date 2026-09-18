@@ -8,7 +8,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [EnableRateLimiting("auth")]
-public sealed class AuthController(AuthService authService, ExternalAuthService externalAuthService, SecurityAuditService securityAudit, ReviewerAuthorizationService reviewerAuthorization, IConfiguration configuration) : ControllerBase
+public sealed class AuthController(AuthService authService, ExternalAuthService externalAuthService, SecurityAuditService securityAudit, ReviewerAuthorizationService reviewerAuthorization, LegalAcceptanceService legalAcceptance, IConfiguration configuration) : ControllerBase
 {
     private const string DefaultCookieName = "milansetu_refresh";
 
@@ -19,8 +19,10 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
         if (request.Email.Length > 320) return BadRequest(new { message = "Email is too long." });
         if (request.Password.Length < 12) return BadRequest(new { message = "Password must be at least 12 characters." });
         if (request.Password.Length > 128) return BadRequest(new { message = "Password is too long." });
+        if (!request.AcceptTerms || !request.AcceptPrivacy || !request.AcceptPersonalInformation || !request.AcceptVerification)
+            return BadRequest(new { message = "All required legal acceptances must be accepted before registration." });
         if (request.Email.Length > 320) return BadRequest(new { message = "Email is too long." });
-        try { var user = await authService.RegisterAsync(request.Email, request.Password, cancellationToken); return Created("/api/auth/me", new { userId = user.Id, email = user.Email }); }
+        try { var user = await authService.RegisterAsync(request.Email, request.Password, cancellationToken); await legalAcceptance.RecordRequiredAsync(user.Id, cancellationToken); return Created("/api/auth/me", new { userId = user.Id, email = user.Email }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
     }
 
@@ -135,7 +137,7 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
     private void ClearRefreshCookie() => Response.Cookies.Delete(CookieName, new CookieOptions { HttpOnly = true, Secure = configuration.GetValue("Auth:RefreshTokenCookieSecure", !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment()), SameSite = SameSiteMode.Strict, Path = "/api/auth" });
 }
 
-public sealed record RegisterRequest(string Email, string Password);
+public sealed record RegisterRequest(string Email, string Password, bool AcceptTerms, bool AcceptPrivacy, bool AcceptPersonalInformation, bool AcceptVerification);
 public sealed record LoginRequest(string Email, string Password);
 
 public sealed record ExternalLoginRequest(string Credential);
