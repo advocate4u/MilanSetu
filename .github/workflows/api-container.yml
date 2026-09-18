@@ -1,0 +1,38 @@
+name: MilanSetu API Container CI
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'backend/MilanSetu.Api/**'
+      - '.github/workflows/api-container.yml'
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/MilanSetu.Api/**'
+      - '.github/workflows/api-container.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build API image
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/MilanSetu.Api
+          file: backend/MilanSetu.Api/Dockerfile
+          push: false
+          tags: milansetu-api:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify image metadata
+        run: docker image inspect milansetu-api:ci --format '{{.Config.Entrypoint}}'
