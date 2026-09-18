@@ -1,19 +1,20 @@
 services:
-  postgres:
-    image: postgres:16
+  mysql:
+    image: mysql:8.0
     environment:
-      POSTGRES_DB: milansetu
-      POSTGRES_USER: milansetu
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-local-only}
+      MYSQL_DATABASE: milansetu
+      MYSQL_USER: milansetu
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-change-me-local-only}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root-local-only}
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - milansetu-postgres:/var/lib/postgresql/data
+      - milansetu-mysql:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U milansetu -d milansetu"]
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p${MYSQL_ROOT_PASSWORD:-change-me-root-local-only} --silent"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
   api:
     build:
       context: ./backend/MilanSetu.Api
@@ -21,17 +22,17 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_HTTP_PORTS: 8080
-      Database__Provider: ${DATABASE_PROVIDER:-PostgreSql}
-      ConnectionStrings__DefaultConnection: ${DATABASE_CONNECTION_STRING:-Host=postgres;Port=5432;Database=milansetu;Username=milansetu;Password=change-me-local-only}
+      Database__Provider: MySQL
+      ConnectionStrings__DefaultConnection: Server=mysql;Port=3306;Database=milansetu;User=milansetu;Password=${MYSQL_PASSWORD:-change-me-local-only}
       Auth__Jwt__Key: ${JWT_KEY:-local-development-key-change-this-to-at-least-32-bytes}
       Auth__Jwt__Issuer: MilanSetu
       Auth__Jwt__Audience: MilanSetu.Web
       Verification__HashKey: ${VERIFICATION_HASH_KEY:-local-development-verification-key-change-this}
       Cors__AllowedOrigins__0: http://localhost:5173
     ports:
-      - "7001:8080"
+      - "7002:8080"
     depends_on:
-      postgres:
+      mysql:
         condition: service_healthy
 volumes:
-  milansetu-postgres:
+  milansetu-mysql:
