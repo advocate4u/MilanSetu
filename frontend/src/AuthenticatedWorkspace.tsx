@@ -6,6 +6,7 @@ import DiscoveryPanel from './DiscoveryPanel'
 import IncomingInterestsPanel from './IncomingInterestsPanel'
 import MessagingPanel from './MessagingPanel'
 import NotificationPanel from './NotificationPanel'
+import MyReportsPanel from './MyReportsPanel'
 import ConnectionsPanel from './ConnectionsPanel'
 import ReviewerPanel from './ReviewerPanel'
 import VerificationPanel from './VerificationPanel'
@@ -37,6 +38,7 @@ export default function AuthenticatedWorkspace() {
     <ConnectionsPanel />
     <MessagingPanel />
     <NotificationPanel />
+    <MyReportsPanel />
     <ReviewerPanel />
     <AdminDashboardPanel />
     <AdminModerationPanel />
