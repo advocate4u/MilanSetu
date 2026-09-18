@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import './advertising.css'
 
 type AdMode = 'Disabled' | 'Sponsor' | 'AdSense'
 type Ad = { enabled:boolean; mode:AdMode; label:string; text:string; targetUrl:string; imageUrl:string; adSenseClient:string; adSenseSlot:string }
