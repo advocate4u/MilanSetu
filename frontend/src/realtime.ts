@@ -5,7 +5,7 @@ const tokenKey = 'milansetu_access_token'
 let connection: HubConnection | null = null
 let starting: Promise<void> | null = null
 
-const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\\/$/, '')
+const apiBaseUrl = () => (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 
 export async function startRealtime() {
   const token = sessionStorage.getItem(tokenKey)
