@@ -35,7 +35,7 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
         try
         {
             var tokens = await authService.SignInAsync(request.Email, request.Password, context, cancellationToken);
-            await securityAudit.RecordAsync(UserIdFromEmail(request.Email), tokens.SessionId, "LOGIN_SUCCESS", true, "password", context, cancellationToken: cancellationToken);
+            await securityAudit.RecordAsync(await securityAudit.FindUserIdByEmailAsync(request.Email, cancellationToken), tokens.SessionId, "LOGIN_SUCCESS", true, "password", context, cancellationToken: cancellationToken);
             SetRefreshCookie(tokens.RefreshToken);
             return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900, sessionId = tokens.SessionId });
         }
@@ -56,7 +56,7 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
         try
         {
             var tokens = await authService.RefreshAsync(refreshToken, context, cancellationToken);
-            await securityAudit.RecordAsync(Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : null, tokens.SessionId, "TOKEN_REFRESH", true, "refresh", context, cancellationToken: cancellationToken);
+            await securityAudit.RecordAsync(await securityAudit.GetSessionUserIdAsync(tokens.SessionId, cancellationToken), tokens.SessionId, "TOKEN_REFRESH", true, "refresh", context, cancellationToken: cancellationToken);
             SetRefreshCookie(tokens.RefreshToken);
             return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900, sessionId = tokens.SessionId });
         }
@@ -82,6 +82,46 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
         ClearRefreshCookie(); return NoContent();
     }
 
+    [AllowAnonymous]
+    [HttpPost("external/{provider}")]
+    public async Task<IActionResult> ExternalLogin(string provider, ExternalLoginRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Credential))
+            return BadRequest(new { message = "External provider credential is required." });
+
+        var context = securityAudit.Capture();
+        try
+        {
+            var tokens = await externalAuthService.SignInAsync(provider, request.Credential, context, cancellationToken);
+            await securityAudit.RecordAsync(tokens.UserId, tokens.SessionId, "LOGIN_SUCCESS", true, tokens.Provider, context,
+                metadata: new { isNewUser = tokens.IsNewUser }, cancellationToken: cancellationToken);
+            SetRefreshCookie(tokens.RefreshToken);
+            return Ok(new
+            {
+                accessToken = tokens.AccessToken,
+                expiresInSeconds = 900,
+                sessionId = tokens.SessionId,
+                provider = tokens.Provider,
+                isNewUser = tokens.IsNewUser
+            });
+        }
+        catch (ExternalAccountLinkRequiredException ex)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "ACCOUNT_LINK_REQUIRED", cancellationToken: cancellationToken);
+            return Conflict(new { code = "ACCOUNT_LINK_REQUIRED", message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "INVALID_EXTERNAL_CREDENTIAL", cancellationToken: cancellationToken);
+            return Unauthorized(new { message = "Invalid external login credential." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "PROVIDER_NOT_CONFIGURED", cancellationToken: cancellationToken);
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     [Authorize]
     [HttpGet("me")]
     public async Task<IActionResult> Me(CancellationToken cancellationToken)
@@ -89,8 +129,6 @@ public sealed class AuthController(AuthService authService, ExternalAuthService 
         var role = await reviewerAuthorization.GetRoleAsync(User, cancellationToken);
         return Ok(new { userId = User.FindFirst("sub")?.Value, email = User.FindFirst("email")?.Value, role = role?.ToString() ?? "User" });
     }
-
-    private Guid? UserIdFromEmail(string email) => null;
 
     private string CookieName => configuration["Auth:RefreshTokenCookieName"] ?? DefaultCookieName;
     private void SetRefreshCookie(string token) => Response.Cookies.Append(CookieName, token, new CookieOptions { HttpOnly = true, Secure = configuration.GetValue("Auth:RefreshTokenCookieSecure", !HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment()), SameSite = SameSiteMode.Strict, Path = "/api/auth", MaxAge = TimeSpan.FromDays(30) });
