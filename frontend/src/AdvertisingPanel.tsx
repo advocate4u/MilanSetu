@@ -1,5 +1,25 @@
 import { useEffect, useState } from 'react'
+import './advertising.css'
+
 type Ad={enabled:boolean;mode:'Disabled'|'Sponsor'|'AdSense';label:string;text:string;targetUrl?:string;imageUrl?:string;adSenseClient?:string;adSenseSlot?:string}
 const base=(import.meta.env.VITE_API_BASE_URL??'').replace(/\/$/,'')
-export default function AdvertisingPanel(){const[a,setA]=useState<Ad|null>(null);useEffect(()=>{fetch(base+'/api/advertising').then(r=>r.ok?r.json():null).then(d=>setA(d)).catch(()=>setA(null))},[]);if(!a?.enabled||a.mode==='Disabled')return null;return <section className="minimal-ad-panel" aria-label="Advertisement"><style>{`.minimal-ad-panel{width:min(100% - 24px,1180px);margin:18px auto;padding:8px 12px;border:1px solid #eee3df;border-radius:12px;background:#fff;box-sizing:border-box;overflow:hidden}.minimal-ad-label{display:block;margin-bottom:5px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.5}.minimal-ad-sponsor{display:flex;align-items:center;gap:14px;min-height:64px}.minimal-ad-sponsor img{width:88px;height:52px;object-fit:cover;border-radius:8px}.minimal-ad-copy{flex:1;font-size:13px;line-height:1.4}.minimal-ad-copy strong{display:block}.minimal-ad-link{color:inherit;text-decoration:none}@media(max-width:600px){.minimal-ad-panel{margin:14px 12px}.minimal-ad-sponsor img{width:64px;height:46px}}`}</style><span className="minimal-ad-label">{a.label}</span>{a.mode==='Sponsor'?<div className="minimal-ad-sponsor">{a.imageUrl&&<img src={a.imageUrl} alt=""/>}<div className="minimal-ad-copy">{a.targetUrl?<a className="minimal-ad-link" href={a.targetUrl} target="_blank" rel="noopener noreferrer sponsored"><strong>{a.text}</strong><span>Sponsored support helps keep MilanSetu free.</span></a>:<><strong>{a.text}</strong><span>Sponsored support helps keep MilanSetu free.</span></>}</div></div>:<AdSense client={a.adSenseClient} slot={a.adSenseSlot}/>}</section>}
-function AdSense({client,slot}:{client?:string;slot?:string}){useEffect(()=>{if(!client||!slot)return;const s=document.createElement('script');s.async=true;s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(client);s.crossOrigin='anonymous';document.head.appendChild(s);s.onload=()=>{try{const w=window as typeof window & {adsbygoogle?:unknown[]};w.adsbygoogle=w.adsbygoogle||[];w.adsbygoogle.push({})}catch{}};return()=>{if(s.parentNode)s.parentNode.removeChild(s)}},[client,slot]);if(!client||!slot)return null;return <ins className="adsbygoogle" style={{display:'block',minHeight:90}} data-ad-client={client} data-ad-slot={slot} data-ad-format="auto" data-full-width-responsive="true"/>}
+export default function AdvertisingPanel(){
+  const [ad,setAd]=useState<Ad|null>(null)
+  useEffect(()=>{fetch(base+'/api/advertising').then(r=>r.ok?r.json():null).then(setAd).catch(()=>setAd(null))},[])
+  if(!ad?.enabled||ad.mode==='Disabled') return null
+  return <section className="advertising-panel" aria-label="Advertisement">
+    <div className="advertising-panel-label"><span className="advertising-dot" aria-hidden="true"/>{ad.label||'Advertisement'}</div>
+    {ad.mode==='Sponsor'
+      ? <div className="advertising-sponsor">
+          {ad.imageUrl&&<div className="advertising-image-wrap"><img src={ad.imageUrl} alt="" loading="lazy"/></div>}
+          <div className="advertising-copy"><strong>{ad.text}</strong><span>Sponsored support helps keep MilanSetu free for everyone.</span></div>
+          {ad.targetUrl&&<a className="advertising-action" href={ad.targetUrl} target="_blank" rel="noopener noreferrer sponsored">Visit</a>}
+        </div>
+      : <AdSense client={ad.adSenseClient} slot={ad.adSenseSlot}/>}
+  </section>
+}
+function AdSense({client,slot}:{client?:string;slot?:string}){
+  useEffect(()=>{if(!client||!slot)return;const s=document.createElement('script');s.async=true;s.src='https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client='+encodeURIComponent(client);s.crossOrigin='anonymous';document.head.appendChild(s);s.onload=()=>{try{const w=window as typeof window & {adsbygoogle?:unknown[]};w.adsbygoogle=w.adsbygoogle||[];w.adsbygoogle.push({})}catch{}};return()=>{if(s.parentNode)s.parentNode.removeChild(s)}},[client,slot])
+  if(!client||!slot)return null
+  return <div className="advertising-adsense"><ins className="adsbygoogle" style={{display:'block',minHeight:90}} data-ad-client={client} data-ad-slot={slot} data-ad-format="auto" data-full-width-responsive="true"/></div>
+}
