@@ -1,5 +1,6 @@
 using MilanSetu.Api.Data;
 using MilanSetu.Api.Domain;
+using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -9,7 +10,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/reports")]
-public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
+public sealed class ReportsController(MilanSetuDbContext db, ModerationAutomationService automation) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Create(CreateReportRequest request, CancellationToken ct)
@@ -37,13 +38,18 @@ public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
         };
         db.UserReports.Add(report);
 
+        var reportsLast30Days = await db.UserReports.AsNoTracking().CountAsync(x =>
+            x.ReportedUserId == report.ReportedUserId &&
+            x.CreatedAt >= DateTimeOffset.UtcNow.AddDays(-30), ct);
+        var assessment = automation.Assess(report.Reason, details, reportsLast30Days);
+
         db.ModerationCases.Add(new ModerationCase
         {
             Id = Guid.NewGuid(),
             ReportId = report.Id,
             TargetUserId = report.ReportedUserId,
-            Severity = GetInitialSeverity(report.Reason),
-            Status = ModerationStatus.Open,
+            Severity = assessment.Severity,
+            Status = assessment.Status,
             Action = ModerationAction.None
         });
 
@@ -59,7 +65,7 @@ public sealed class ReportsController(MilanSetuDbContext db) : ControllerBase
         });
 
         await db.SaveChangesAsync(ct);
-        return Ok(new { report.Id, status = report.Status.ToString() });
+        return Ok(new { report.Id, status = report.Status.ToString(), moderation = new { severity = assessment.Severity.ToString(), status = assessment.Status.ToString() } });
     }
 
     [HttpGet("mine")]

@@ -50,3 +50,14 @@ The API exposes:
 - `GET /api/health/database` — PostgreSQL connectivity status
 
 The database health endpoint returns `not-configured` when no connection string is supplied and does not expose connection details.
+
+
+## Safety, privacy and operations
+
+The authenticated workspace includes profile visibility controls, a personal safety status view, report tracking, and server-enforced blocking/moderation. Contact details and verification documents are not exposed through profile discovery.
+
+Administrators have growth/safety analytics and in-process API runtime metrics. API requests receive an `X-Correlation-ID`; server errors are logged with the correlation ID for operational tracing. Runtime metrics are intentionally process-local and are not a substitute for persistent production monitoring.
+
+Report intake uses automated risk signals for scam/impersonation/payment/credential indicators and repeated reports. High-risk cases enter the reviewer queue as `Reviewing`; automated scoring does not suspend or ban accounts.
+
+Notification badges use a server-side unread summary and refresh while the page is visible. 

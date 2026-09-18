@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { getNotifications, markAllNotificationsRead, markNotificationRead, type NotificationItem } from './safetyApi'
+import { getNotifications, getNotificationSummary, markAllNotificationsRead, markNotificationRead, type NotificationItem } from './safetyApi'
 
-const REFRESH_INTERVAL_MS = 30_000
+const REFRESH_INTERVAL_MS = 15_000
 
 export default function NotificationPanel() {
   const [open, setOpen] = useState(false)
@@ -10,7 +10,8 @@ export default function NotificationPanel() {
   const [loading, setLoading] = useState(false)
   const [busyId, setBusyId] = useState<string | null>(null)
   const requestId = useRef(0)
-  const unread = items.filter(x => !x.readAt).length
+  const [serverUnread, setServerUnread] = useState<number | null>(null)
+  const unread = serverUnread ?? items.filter(x => !x.readAt).length
 
   const refresh = useCallback(async () => {
     if (!sessionStorage.getItem('milansetu_access_token')) {
@@ -21,8 +22,8 @@ export default function NotificationPanel() {
     setLoading(true)
     setError('')
     try {
-      const next = await getNotifications()
-      if (currentRequest === requestId.current) setItems(next)
+      const [next, summary] = await Promise.all([getNotifications(), getNotificationSummary()])
+      if (currentRequest === requestId.current) { setItems(next); setServerUnread(summary.unreadCount) }
     } catch (e) {
       if (currentRequest === requestId.current) setError(e instanceof Error ? e.message : 'Unable to load notifications.')
     } finally {
@@ -66,6 +67,7 @@ export default function NotificationPanel() {
     try {
       await markNotificationRead(item.id)
       setItems(current => current.map(x => x.id === item.id ? { ...x, readAt: new Date().toISOString() } : x))
+      setServerUnread(current => Math.max(0, (current ?? unread) - 1))
       window.dispatchEvent(new Event('milansetu:notifications-changed'))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to update notification.')
@@ -80,6 +82,7 @@ export default function NotificationPanel() {
       await markAllNotificationsRead()
       const now = new Date().toISOString()
       setItems(current => current.map(x => ({ ...x, readAt: x.readAt ?? now })))
+      setServerUnread(0)
       window.dispatchEvent(new Event('milansetu:notifications-changed'))
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unable to update notifications.')
