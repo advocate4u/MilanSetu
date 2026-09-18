@@ -5,6 +5,18 @@ namespace MilanSetu.Api.Data;
 
 public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : DbContext(options)
 {
+    public DbSet<Country> Countries => Set<Country>();
+    public DbSet<State> States => Set<State>();
+    public DbSet<District> Districts => Set<District>();
+    public DbSet<City> Cities => Set<City>();
+    public DbSet<BloodGroup> BloodGroups => Set<BloodGroup>();
+    public DbSet<MaritalStatus> MaritalStatuses => Set<MaritalStatus>();
+    public DbSet<MotherTongue> MotherTongues => Set<MotherTongue>();
+    public DbSet<EducationLevel> EducationLevels => Set<EducationLevel>();
+    public DbSet<EmploymentTypeMaster> EmploymentTypes => Set<EmploymentTypeMaster>();
+    public DbSet<DietType> DietTypes => Set<DietType>();
+    public DbSet<SmokingStatus> SmokingStatuses => Set<SmokingStatus>();
+    public DbSet<DrinkingStatus> DrinkingStatuses => Set<DrinkingStatus>();
     public DbSet<User> Users => Set<User>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Profile> Profiles => Set<Profile>();
@@ -35,6 +47,61 @@ public class MilanSetuDbContext(DbContextOptions<MilanSetuDbContext> options) : 
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<Country>(entity => { entity.ToTable("countries"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.Property(x => x.Code).HasMaxLength(2).IsRequired(); entity.HasIndex(x => x.Code).IsUnique(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<State>(entity => { entity.ToTable("states"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.CountryId, x.Name }).IsUnique(); entity.HasOne(x => x.Country).WithMany().HasForeignKey(x => x.CountryId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<District>(entity => { entity.ToTable("districts"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => new { x.StateId, x.Name }).IsUnique(); entity.HasOne(x => x.State).WithMany().HasForeignKey(x => x.StateId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<City>(entity => { entity.ToTable("cities"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(160).IsRequired(); entity.HasIndex(x => new { x.DistrictId, x.Name }).IsUnique(); entity.HasOne(x => x.District).WithMany().HasForeignKey(x => x.DistrictId).OnDelete(DeleteBehavior.Restrict); });
+        modelBuilder.Entity<BloodGroup>(entity => { entity.ToTable("blood_groups"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(20).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<MaritalStatus>(entity => { entity.ToTable("marital_statuses"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(60).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<MotherTongue>(entity => { entity.ToTable("mother_tongues"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(80).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<EducationLevel>(entity => { entity.ToTable("education_levels"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(120).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<EmploymentTypeMaster>(entity => { entity.ToTable("employment_types"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(80).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<DietType>(entity => { entity.ToTable("diet_types"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(80).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<SmokingStatus>(entity => { entity.ToTable("smoking_statuses"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(80).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+        modelBuilder.Entity<DrinkingStatus>(entity => { entity.ToTable("drinking_statuses"); entity.HasKey(x => x.Id); entity.Property(x => x.Name).HasMaxLength(80).IsRequired(); entity.HasIndex(x => x.Name).IsUnique(); });
+
+        modelBuilder.Entity<Country>().HasData(new Country { Id = 1, Name = "India", Code = "IN", IsActive = true, SortOrder = 1 });
+        modelBuilder.Entity<BloodGroup>().HasData(
+            new BloodGroup { Id = 1, Name = "A+", SortOrder = 1 }, new BloodGroup { Id = 2, Name = "A-", SortOrder = 2 },
+            new BloodGroup { Id = 3, Name = "B+", SortOrder = 3 }, new BloodGroup { Id = 4, Name = "B-", SortOrder = 4 },
+            new BloodGroup { Id = 5, Name = "AB+", SortOrder = 5 }, new BloodGroup { Id = 6, Name = "AB-", SortOrder = 6 },
+            new BloodGroup { Id = 7, Name = "O+", SortOrder = 7 }, new BloodGroup { Id = 8, Name = "O-", SortOrder = 8 }
+        );
+        modelBuilder.Entity<MaritalStatus>().HasData(
+            new MaritalStatus { Id = 1, Name = "Never Married", SortOrder = 1 }, new MaritalStatus { Id = 2, Name = "Divorced", SortOrder = 2 },
+            new MaritalStatus { Id = 3, Name = "Widowed", SortOrder = 3 }, new MaritalStatus { Id = 4, Name = "Separated", SortOrder = 4 }
+        );
+        modelBuilder.Entity<MotherTongue>().HasData(
+            new MotherTongue { Id = 1, Name = "Hindi", SortOrder = 1 }, new MotherTongue { Id = 2, Name = "English", SortOrder = 2 },
+            new MotherTongue { Id = 3, Name = "Punjabi", SortOrder = 3 }, new MotherTongue { Id = 4, Name = "Bengali", SortOrder = 4 },
+            new MotherTongue { Id = 5, Name = "Marathi", SortOrder = 5 }, new MotherTongue { Id = 6, Name = "Gujarati", SortOrder = 6 },
+            new MotherTongue { Id = 7, Name = "Tamil", SortOrder = 7 }, new MotherTongue { Id = 8, Name = "Telugu", SortOrder = 8 },
+            new MotherTongue { Id = 9, Name = "Kannada", SortOrder = 9 }, new MotherTongue { Id = 10, Name = "Malayalam", SortOrder = 10 },
+            new MotherTongue { Id = 11, Name = "Urdu", SortOrder = 11 }
+        );
+        modelBuilder.Entity<EducationLevel>().HasData(
+            new EducationLevel { Id = 1, Name = "High School", SortOrder = 1 }, new EducationLevel { Id = 2, Name = "Diploma", SortOrder = 2 },
+            new EducationLevel { Id = 3, Name = "Bachelor's", SortOrder = 3 }, new EducationLevel { Id = 4, Name = "Master's", SortOrder = 4 },
+            new EducationLevel { Id = 5, Name = "Doctorate", SortOrder = 5 }, new EducationLevel { Id = 6, Name = "Professional", SortOrder = 6 }
+        );
+        modelBuilder.Entity<EmploymentTypeMaster>().HasData(
+            new EmploymentTypeMaster { Id = 1, Name = "Full Time", SortOrder = 1 }, new EmploymentTypeMaster { Id = 2, Name = "Part Time", SortOrder = 2 },
+            new EmploymentTypeMaster { Id = 3, Name = "Self Employed", SortOrder = 3 }, new EmploymentTypeMaster { Id = 4, Name = "Business", SortOrder = 4 },
+            new EmploymentTypeMaster { Id = 5, Name = "Government", SortOrder = 5 }, new EmploymentTypeMaster { Id = 6, Name = "Student", SortOrder = 6 },
+            new EmploymentTypeMaster { Id = 7, Name = "Not Working", SortOrder = 7 }
+        );
+        modelBuilder.Entity<DietType>().HasData(
+            new DietType { Id = 1, Name = "Vegetarian", SortOrder = 1 }, new DietType { Id = 2, Name = "Non-Vegetarian", SortOrder = 2 },
+            new DietType { Id = 3, Name = "Eggetarian", SortOrder = 3 }, new DietType { Id = 4, Name = "Vegan", SortOrder = 4 }
+        );
+        modelBuilder.Entity<SmokingStatus>().HasData(
+            new SmokingStatus { Id = 1, Name = "Never", SortOrder = 1 }, new SmokingStatus { Id = 2, Name = "Occasionally", SortOrder = 2 },
+            new SmokingStatus { Id = 3, Name = "Regularly", SortOrder = 3 }
+        );
+        modelBuilder.Entity<DrinkingStatus>().HasData(
+            new DrinkingStatus { Id = 1, Name = "Never", SortOrder = 1 }, new DrinkingStatus { Id = 2, Name = "Occasionally", SortOrder = 2 },
+            new DrinkingStatus { Id = 3, Name = "Regularly", SortOrder = 3 }
+        );
         modelBuilder.Entity<User>(entity => { entity.ToTable("users"); entity.HasKey(x => x.Id); entity.Property(x => x.Email).HasMaxLength(320).IsRequired(); entity.HasIndex(x => x.Email).IsUnique(); entity.Property(x => x.PhoneNumber).HasMaxLength(32); entity.HasIndex(x => x.PhoneNumber).IsUnique(); entity.Property(x => x.PasswordHash).HasMaxLength(500).IsRequired(); entity.HasOne(x => x.Profile).WithOne(x => x.User).HasForeignKey<Profile>(x => x.UserId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<RefreshToken>(entity => { entity.ToTable("refresh_tokens"); entity.HasKey(x => x.Id); entity.Property(x => x.TokenHash).HasMaxLength(64).IsRequired(); entity.HasIndex(x => x.TokenHash).IsUnique(); entity.HasIndex(x => new { x.UserId, x.ExpiresAt }); entity.HasOne(x => x.User).WithMany(x => x.RefreshTokens).HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<Profile>(entity => { entity.ToTable("profiles"); entity.HasKey(x => x.Id); entity.HasIndex(x => x.UserId).IsUnique(); entity.Property(x => x.DisplayName).HasMaxLength(120).IsRequired(); entity.Property(x => x.MaritalStatus).HasMaxLength(40); entity.Property(x => x.MotherTongue).HasMaxLength(80); entity.Property(x => x.Bio).HasMaxLength(2000); entity.Property(x => x.Gender).HasConversion<string>().HasMaxLength(20); entity.Property(x => x.AccountType).HasConversion<string>().HasMaxLength(20); entity.Property(x => x.Visibility).HasConversion<string>().HasMaxLength(20); });
