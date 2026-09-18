@@ -16,7 +16,9 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
     public async Task<IActionResult> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password)) return BadRequest(new { message = "Email and password are required." });
+        if (request.Email.Length > 320) return BadRequest(new { message = "Email is too long." });
         if (request.Password.Length < 12) return BadRequest(new { message = "Password must be at least 12 characters." });
+        if (request.Password.Length > 128) return BadRequest(new { message = "Password is too long." });
         if (request.Email.Length > 320) return BadRequest(new { message = "Email is too long." });
         try { var user = await authService.RegisterAsync(request.Email, request.Password, cancellationToken); return Created("/api/auth/me", new { userId = user.Id, email = user.Email }); }
         catch (InvalidOperationException ex) { return Conflict(new { message = ex.Message }); }
@@ -25,6 +27,10 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request, CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(request.Email) || string.IsNullOrWhiteSpace(request.Password))
+            return BadRequest(new { message = "Email and password are required." });
+        if (request.Email.Length > 320 || request.Password.Length > 128)
+            return BadRequest(new { message = "Email or password is too long." });
         try { var tokens = await authService.SignInAsync(request.Email, request.Password, cancellationToken); SetRefreshCookie(tokens.RefreshToken); return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900 }); }
         catch (UnauthorizedAccessException) { return Unauthorized(new { message = "Invalid email or password." }); }
     }
