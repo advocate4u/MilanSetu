@@ -10,7 +10,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/messages")]
-public sealed class MessagesController(MilanSetuDbContext db, MessageModerationService moderation) : ControllerBase
+public sealed class MessagesController(MilanSetuDbContext db, MessageModerationService moderation, IRealtimeNotificationService realtime) : ControllerBase
 {
     [HttpGet("conversations")]
     public async Task<IActionResult> Conversations(CancellationToken ct)
@@ -140,6 +140,11 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
         });
 
         await db.SaveChangesAsync(ct);
+        await realtime.PublishAsync(otherUserId, "message-received", new
+        {
+            conversationId,
+            message = new { message.Id, message.SenderUserId, message.Body, message.CreatedAt }
+        }, ct);
 
         return Ok(new { message.Id, message.SenderUserId, message.Body, message.CreatedAt });
     }
