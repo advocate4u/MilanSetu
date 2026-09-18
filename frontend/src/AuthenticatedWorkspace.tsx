@@ -20,6 +20,7 @@ import SafetyPanel from './SafetyPanel'
 import AdminAnalyticsPanel from './AdminAnalyticsPanel'
 import AdminMetricsPanel from './AdminMetricsPanel'
 import SuperAdminAdvertisingPanel from './SuperAdminAdvertisingPanel'
+import ContactSharingPanel from './ContactSharingPanel'
 import AdvertisingPanel from './AdvertisingPanel'
 import { startRealtime, stopRealtime } from './realtime'
 
@@ -52,6 +53,7 @@ export default function AuthenticatedWorkspace() {
     <DiscoveryPanel />
     <IncomingInterestsPanel />
     <ConnectionsPanel />
+    <ContactSharingPanel />
     <MessagingPanel />
     <NotificationPanel />
     <MyReportsPanel />
