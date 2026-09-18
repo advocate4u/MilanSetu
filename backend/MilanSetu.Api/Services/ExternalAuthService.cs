@@ -19,6 +19,7 @@ public sealed class ExternalAuthService(
     public async Task<ExternalAuthResult> SignInAsync(
         string provider,
         string credential,
+        ClientSecurityContext context,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(credential))
@@ -86,8 +87,8 @@ public sealed class ExternalAuthService(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        var tokens = await authService.IssueTokensForExternalLoginAsync(user, cancellationToken);
-        return new ExternalAuthResult(tokens.AccessToken, tokens.RefreshToken, isNewUser, identity.Provider);
+        var tokens = await authService.IssueTokensForExternalLoginAsync(user, identity.Provider, context, cancellationToken);
+        return new ExternalAuthResult(tokens.AccessToken, tokens.RefreshToken, tokens.SessionId, isNewUser, identity.Provider);
     }
 
     private async Task<ExternalIdentity> ValidateGoogleAsync(string idToken, CancellationToken cancellationToken)
@@ -208,6 +209,7 @@ public sealed class ExternalAuthService(
 public sealed record ExternalAuthResult(
     string AccessToken,
     string RefreshToken,
+    Guid SessionId,
     bool IsNewUser,
     string Provider);
 
