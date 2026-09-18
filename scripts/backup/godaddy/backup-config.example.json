@@ -1,0 +1,15 @@
+{
+  "LocalBackupRoot": "D:\\MilanSetu-Backups",
+  "RetentionDays": 30,
+  "FtpCredentialFile": "D:\\MilanSetu-Backups\\.ftp-credential.xml",
+  "DatabaseCredentialFile": "D:\\MilanSetu-Backups\\.db-credential.xml",
+  "Ftp": {
+    "Host": "YOUR_GODADDY_FTP_HOST",
+    "RemoteRoot": "httpdocs"
+  },
+  "Database": {
+    "Host": "YOUR_GODADDY_MYSQL_HOST",
+    "Port": 3306,
+    "Database": "YOUR_DATABASE_NAME"
+  }
+}

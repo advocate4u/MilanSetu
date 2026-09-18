@@ -1,0 +1,35 @@
+name: MilanSetu Backup Manager
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "tools/MilanSetuBackupManager/**"
+      - "scripts/backup/godaddy/**"
+      - ".github/workflows/backup-manager.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Publish Windows EXE
+        run: dotnet publish tools/MilanSetuBackupManager/MilanSetuBackupManager.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true -o artifacts/MilanSetuBackupManager
+      - name: Package EXE and backup scripts
+        shell: pwsh
+        run: |
+          Copy-Item scripts/backup/godaddy artifacts/MilanSetuBackupManager/godaddy -Recurse
+          Remove-Item artifacts/MilanSetuBackupManager/godaddy/backup-config.json -ErrorAction SilentlyContinue
+          Remove-Item artifacts/MilanSetuBackupManager/godaddy/*.xml -ErrorAction SilentlyContinue
+          Compress-Archive -Path artifacts/MilanSetuBackupManager/* -DestinationPath artifacts/MilanSetuBackupManager-win-x64.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MilanSetuBackupManager-win-x64
+          path: artifacts/MilanSetuBackupManager-win-x64.zip
+          if-no-files-found: error
