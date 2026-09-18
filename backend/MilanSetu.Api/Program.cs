@@ -13,6 +13,8 @@ var isProduction = builder.Environment.IsProduction();
 const long MaxRequestBodyBytes = 10L * 1024 * 1024;
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+builder.Services.AddSingleton<IRealtimeNotificationService, RealtimeNotificationService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<ReviewerAuthorizationService>();
 builder.Services.AddSingleton<MessageModerationService>();
@@ -45,6 +47,18 @@ if (!string.IsNullOrWhiteSpace(jwtKey) && Encoding.UTF8.GetByteCount(jwtKey) >= 
     issuer ??= "MilanSetu";
     audience ??= "MilanSetu.Web";
     builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(options =>
+    {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments(NotificationHub.Route))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            }
+        };
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -55,7 +69,8 @@ if (!string.IsNullOrWhiteSpace(jwtKey) && Encoding.UTF8.GetByteCount(jwtKey) >= 
             ValidAudience = audience,
             ValidateLifetime = true,
             ClockSkew = TimeSpan.FromSeconds(30)
-        });
+        };
+    });
 }
 else
 {
@@ -161,6 +176,7 @@ app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<NotificationHub>(NotificationHub.Route);
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "MilanSetu.Api" }));
 app.MapGet("/api/health/database", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
