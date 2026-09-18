@@ -22,6 +22,7 @@ import AdminMetricsPanel from './AdminMetricsPanel'
 import SuperAdminAdvertisingPanel from './SuperAdminAdvertisingPanel'
 import ContactSharingPanel from './ContactSharingPanel'
 import SuperAdminContactSharingPanel from './SuperAdminContactSharingPanel'
+import SuperAdminPlatformSettingsPanel from './SuperAdminPlatformSettingsPanel'
 import AdvertisingPanel from './AdvertisingPanel'
 import { startRealtime, stopRealtime } from './realtime'
 
@@ -67,5 +68,6 @@ export default function AuthenticatedWorkspace() {
     <AdminUsersPanel />
     <SuperAdminAdvertisingPanel />
     <SuperAdminContactSharingPanel />
+    <SuperAdminPlatformSettingsPanel />
   </>
 }

@@ -15,6 +15,7 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
     [HttpGet("conversations")]
     public async Task<IActionResult> Conversations(CancellationToken ct)
     {
+        if (!await MessagingEnabled(ct)) return StatusCode(StatusCodes.Status403Forbidden, new { message = "Messaging is currently disabled by the administrator." });
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var items = await db.Conversations.AsNoTracking()
@@ -36,6 +37,7 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
     [HttpPost("conversations/{otherUserId:guid}")]
     public async Task<IActionResult> OpenConversation(Guid otherUserId, CancellationToken ct)
     {
+        if (!await MessagingEnabled(ct)) return StatusCode(StatusCodes.Status403Forbidden, new { message = "Messaging is currently disabled by the administrator." });
         if (!TryGetUserId(out var userId)) return Unauthorized();
         if (userId == otherUserId) return BadRequest(new { message = "You cannot start a conversation with yourself." });
         if (!await db.Users.AnyAsync(x => x.Id == otherUserId, ct)) return NotFound();
@@ -64,6 +66,7 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
         [FromQuery] DateTimeOffset? before = null,
         CancellationToken ct = default)
     {
+        if (!await MessagingEnabled(ct)) return StatusCode(StatusCodes.Status403Forbidden, new { message = "Messaging is currently disabled by the administrator." });
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var conversation = await db.Conversations.AsNoTracking()
@@ -90,6 +93,7 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
     [HttpPost("conversations/{conversationId:guid}")]
     public async Task<IActionResult> Send(Guid conversationId, SendMessageRequest request, CancellationToken ct)
     {
+        if (!await MessagingEnabled(ct)) return StatusCode(StatusCodes.Status403Forbidden, new { message = "Messaging is currently disabled by the administrator." });
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
         var body = request.Body?.Trim();
@@ -162,6 +166,8 @@ public sealed class MessagesController(MilanSetuDbContext db, MessageModerationS
         await db.SaveChangesAsync(ct);
         return NoContent();
     }
+
+    private async Task<bool> MessagingEnabled(CancellationToken ct) => (await db.PlatformSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, ct))?.MessagingEnabled ?? true;
 
     private async Task<bool> IsBlocked(Guid userId, Guid otherUserId, CancellationToken ct) =>
         await db.Blocks.AnyAsync(x =>

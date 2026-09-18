@@ -11,12 +11,17 @@ export default function ProfilePhotoManager() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [maxPhotos, setMaxPhotos] = useState(6)
   const previews = useRef<string[]>([])
 
   useEffect(() => {
     let active = true
     const load = async () => {
       if (!sessionStorage.getItem('milansetu_access_token')) return
+      try {
+        const settingsResponse = await fetch('/api/platform/settings')
+        if (settingsResponse.ok) { const settings = await settingsResponse.json(); if (Number.isFinite(settings.maxProfilePhotos)) setMaxPhotos(Math.max(1, Math.min(20, settings.maxProfilePhotos))) }
+      } catch {}
       try {
         const items = await getProfilePhotos()
         const hydrated = await Promise.all(items.map(async photo => ({ ...photo, preview: await loadProfilePhoto(photo) })))
@@ -34,7 +39,7 @@ export default function ProfilePhotoManager() {
     setError(''); setSuccess('')
     if (!ALLOWED_TYPES.has(file.type)) return setError('Only JPEG, PNG, and WebP photos are supported.')
     if (file.size > MAX_FILE_SIZE) return setError('Photo must be 5 MB or smaller.')
-    if (photos.length >= 6) return setError('You can add up to 6 profile photos.')
+    if (photos.length >= maxPhotos) return setError(`You can add up to ${maxPhotos} profile photos.`)
     setBusy(true)
     try {
       const photo = await uploadProfilePhoto(file)
@@ -78,8 +83,8 @@ export default function ProfilePhotoManager() {
   if (!sessionStorage.getItem('milansetu_access_token')) return null
   return <section className="photo-manager" aria-label="Profile photos">
     <div className="photo-manager-head">
-      <div><p className="eyebrow">PROFILE PHOTOS</p><h2>Show the real you</h2><p>Photos are private by default and available only through authenticated access. Up to 6 photos, 5 MB each.</p></div>
-      <label className="primary-button photo-upload">{busy ? 'Working…' : 'Add photo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || photos.length >= 6} onChange={e => { const file = e.target.files?.[0]; if (file) void upload(file); e.currentTarget.value = '' }} /></label>
+      <div><p className="eyebrow">PROFILE PHOTOS</p><h2>Show the real you</h2><p>Photos are private by default and available only through authenticated access. Up to {maxPhotos} photos, 5 MB each.</p></div>
+      <label className="primary-button photo-upload">{busy ? 'Working…' : 'Add photo'}<input type="file" accept="image/jpeg,image/png,image/webp" disabled={busy || photos.length >= maxPhotos} onChange={e => { const file = e.target.files?.[0]; if (file) void upload(file); e.currentTarget.value = '' }} /></label>
     </div>
     {error && <p className="profile-error" role="alert">{error}</p>}
     {success && <p className="profile-success" role="status">{success}</p>}

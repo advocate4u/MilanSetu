@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc;
 
 namespace MilanSetu.Api.Controllers;
@@ -7,7 +8,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/profile/photos")]
-public sealed class ProfilePhotosController(IWebHostEnvironment environment) : ControllerBase
+public sealed class ProfilePhotosController(IWebHostEnvironment environment, MilanSetu.Api.Data.MilanSetuDbContext db) : ControllerBase
 {
     private const long MaxFileSize = 5 * 1024 * 1024;
     private const int MaxPhotos = 6;
@@ -39,7 +40,9 @@ public sealed class ProfilePhotosController(IWebHostEnvironment environment) : C
         var directory = UserDirectory(userId);
         Directory.CreateDirectory(directory);
         var existing = Directory.EnumerateFiles(directory).Where(x => !string.Equals(Path.GetFileName(x), OrderFileName, StringComparison.OrdinalIgnoreCase)).Count();
-        if (existing >= MaxPhotos) return Conflict(new { message = "You can add up to 6 profile photos." });
+        var settings = await db.PlatformSettings.AsNoTracking().SingleOrDefaultAsync(x => x.Id == 1, ct) ?? new MilanSetu.Api.Domain.PlatformSettings();
+        var maxPhotos = Math.Clamp(settings.MaxProfilePhotos, 1, 20);
+        if (existing >= maxPhotos) return Conflict(new { message = $"You can add up to {maxPhotos} profile photos." });
         await using var input = file.OpenReadStream();
         var header = new byte[12];
         var read = await input.ReadAsync(header.AsMemory(0, header.Length), ct);
