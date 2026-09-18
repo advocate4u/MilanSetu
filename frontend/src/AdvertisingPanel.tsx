@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 type AdMode = 'none' | 'sponsor' | 'adsense'
 
-const mode = (import.meta.env.VITE_AD_MODE?.trim().toLowerCase() || 'none') as AdMode
+const configuredMode = import.meta.env.VITE_AD_MODE?.trim().toLowerCase()\nconst mode: AdMode = configuredMode === 'sponsor' || configuredMode === 'adsense' ? configuredMode : 'none'
 const sponsorText = import.meta.env.VITE_AD_TEXT?.trim() || 'Help keep MilanSetu free for everyone.'
 const sponsorLabel = import.meta.env.VITE_AD_LABEL?.trim() || 'Advertisement'
 const sponsorUrl = import.meta.env.VITE_AD_URL?.trim() || ''
@@ -30,7 +30,7 @@ function GoogleAd() {
     document.head.appendChild(script)
   }, [])
 
-  if (!adsenseClient || !adsenseSlot || !ready) return <AdPlaceholder />
+  useEffect(() => {\n    if (!ready || !adsenseClient || !adsenseSlot) return\n    try {\n      const w = window as typeof window & { adsbygoogle?: unknown[] }\n      w.adsbygoogle = w.adsbygoogle || []\n      w.adsbygoogle.push({})\n    } catch {\n      // Ad blockers and unavailable inventory must not affect the app.\n    }\n  }, [ready])\n\n  if (!adsenseClient || !adsenseSlot || !ready) return <AdPlaceholder />
   return <ins className="adsbygoogle" style={{ display: 'block', minHeight: 90 }} data-ad-client={adsenseClient} data-ad-slot={adsenseSlot} data-ad-format="auto" data-full-width-responsive="true" />
 }
 
