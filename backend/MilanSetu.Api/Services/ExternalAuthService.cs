@@ -88,7 +88,7 @@ public sealed class ExternalAuthService(
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
         var tokens = await authService.IssueTokensForExternalLoginAsync(user, identity.Provider, context, cancellationToken);
-        return new ExternalAuthResult(tokens.AccessToken, tokens.RefreshToken, tokens.SessionId, isNewUser, identity.Provider);
+        return new ExternalAuthResult(user.Id, tokens.AccessToken, tokens.RefreshToken, tokens.SessionId, isNewUser, identity.Provider);
     }
 
     private async Task<ExternalIdentity> ValidateGoogleAsync(string idToken, CancellationToken cancellationToken)
@@ -207,6 +207,7 @@ public sealed class ExternalAuthService(
 }
 
 public sealed record ExternalAuthResult(
+    Guid UserId,
     string AccessToken,
     string RefreshToken,
     Guid SessionId,
