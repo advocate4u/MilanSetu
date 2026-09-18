@@ -152,6 +152,13 @@ public sealed class SecurityAuditService(IUnitOfWork unitOfWork, IHttpContextAcc
         return true;
     }
 
+    public async Task<IReadOnlyList<SecurityAuditLog>> GetActivityAsync(Guid userId, int take, CancellationToken cancellationToken)
+        => await Logs.Query()
+            .Where(x => x.UserId == userId)
+            .OrderByDescending(x => x.Timestamp)
+            .Take(take)
+            .ToListAsync(cancellationToken);
+
     private static string? Clean(string? value, int max)
     {
         if (string.IsNullOrWhiteSpace(value)) return null;
