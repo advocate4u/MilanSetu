@@ -40,6 +40,17 @@ public sealed class NotificationsController(MilanSetuDbContext db) : ControllerB
         return Ok(items);
     }
 
+    [HttpGet("summary")]
+    public async Task<IActionResult> Summary(CancellationToken ct)
+    {
+        if (!TryGetUserId(out var userId)) return Unauthorized();
+        var query = db.Notifications.AsNoTracking().Where(x => x.UserId == userId);
+        var unreadCount = await query.CountAsync(x => x.ReadAt == null, ct);
+        var latest = await query.OrderByDescending(x => x.CreatedAt).Select(x => (DateTimeOffset?)x.CreatedAt).FirstOrDefaultAsync(ct);
+        var unreadByType = await query.Where(x => x.ReadAt == null).GroupBy(x => x.Type).Select(x => new { type = x.Key.ToString(), count = x.Count() }).ToListAsync(ct);
+        return Ok(new { unreadCount, latestCreatedAt = latest, unreadByType });
+    }
+
     [HttpPost("{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken ct)
     {
