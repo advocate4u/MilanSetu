@@ -61,3 +61,17 @@ Administrators have growth/safety analytics and in-process API runtime metrics. 
 Report intake uses automated risk signals for scam/impersonation/payment/credential indicators and repeated reports. High-risk cases enter the reviewer queue as `Reviewing`; automated scoring does not suspend or ban accounts.
 
 Notification badges use a server-side unread summary, refresh while the page is visible, and react to live SignalR events. Messaging also keeps polling as a resilience fallback. 
+
+## Minimal advertising
+
+MilanSetu remains free for users. The web app includes an optional, unobtrusive advertising panel that is disabled by default. It supports either a simple sponsor message/link or Google AdSense without exposing user profile data to the ad component.
+
+Configure the frontend through environment variables in `frontend/.env` (never commit secrets):
+
+- `VITE_AD_MODE=none` — disabled (default)
+- `VITE_AD_MODE=sponsor` — direct sponsor message/link
+- `VITE_AD_MODE=adsense` — Google AdSense slot
+- `VITE_AD_TEXT`, `VITE_AD_URL`, `VITE_AD_IMAGE_URL` — sponsor creative
+- `VITE_ADSENSE_CLIENT`, `VITE_ADSENSE_SLOT` — AdSense configuration
+
+Ads are deliberately limited to the authenticated workspace and do not use MilanSetu profile data for targeting.
