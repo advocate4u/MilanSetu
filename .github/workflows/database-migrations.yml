@@ -1,0 +1,66 @@
+name: Database Initial Migrations
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  generate-and-validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: milansetu
+          POSTGRES_USER: milansetu
+          POSTGRES_PASSWORD: ci
+        ports: [5432:5432]
+        options: >-
+          --health-cmd "pg_isready -U milansetu -d milansetu"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: milansetu
+          MYSQL_USER: milansetu
+          MYSQL_PASSWORD: ci
+          MYSQL_ROOT_PASSWORD: root-ci
+        ports: [3306:3306]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -proot-ci --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Generate provider-specific EF migrations and SQL
+        run: bash scripts/database/generate-initial-migrations.sh
+      - name: Review generated migration sets
+        run: |
+          echo "=== PostgreSQL migration operations ==="
+          grep -E 'CreateTable|AddForeignKey|CreateIndex' artifacts/initial-migrations/postgresql/*.cs | sed -n '1,240p'
+          echo "=== MySQL migration operations ==="
+          grep -E 'CreateTable|AddForeignKey|CreateIndex' artifacts/initial-migrations/mysql/*.cs | sed -n '1,240p'
+      - name: Apply PostgreSQL initial migration
+        env:
+          PGPASSWORD: ci
+        run: psql -h 127.0.0.1 -U milansetu -d milansetu -v ON_ERROR_STOP=1 -f artifacts/initial-migrations/postgresql/001_InitialCreate.sql
+      - name: Apply MySQL initial migration
+        run: mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u milansetu -pci --database=milansetu --show-warnings < artifacts/initial-migrations/mysql/001_InitialCreate.sql
+      - name: Validate PostgreSQL schema
+        env:
+          PGPASSWORD: ci
+        run: |
+          test "$(psql -h 127.0.0.1 -U milansetu -d milansetu -Atc "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE';")" -ge 26
+          psql -h 127.0.0.1 -U milansetu -d milansetu -Atc "select to_regclass('public.users'), to_regclass('public.profiles'), to_regclass('public.verification_documents');"
+      - name: Validate MySQL schema
+        run: |
+          test "$(mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u milansetu -pci -Nse "select count(*) from information_schema.tables where table_schema='milansetu' and table_type='BASE TABLE';")" -ge 26
+          mysql --protocol=tcp -h 127.0.0.1 -P 3306 -u milansetu -pci -Nse "select table_name from information_schema.tables where table_schema='milansetu' and table_name in ('users','profiles','verification_documents') order by table_name;"
+      - name: Upload actual generated migration sets
+        uses: actions/upload-artifact@v4
+        with:
+          name: milansetu-initial-migrations
+          path: artifacts/initial-migrations
+          if-no-files-found: error
