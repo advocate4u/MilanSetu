@@ -2,23 +2,26 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using MilanSetu.Api.Data;
+using MilanSetu.Api.Data.Repositories;
 using MilanSetu.Api.Domain;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 namespace MilanSetu.Api.Services;
 
-public sealed class AuthService(MilanSetuDbContext db, IConfiguration configuration)
+public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
 {
     private const int PasswordIterations = 210_000;
     private const int PasswordKeyLength = 32;
     private const int RefreshTokenBytes = 32;
 
+    private IRepository<User> Users => unitOfWork.Repository<User>();
+    private IRepository<RefreshToken> RefreshTokens => unitOfWork.Repository<RefreshToken>();
+
     public async Task<User> RegisterAsync(string email, string password, CancellationToken cancellationToken)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        if (await db.Users.AnyAsync(x => x.Email == normalizedEmail, cancellationToken))
+        if (await Users.AnyAsync(x => x.Email == normalizedEmail, cancellationToken))
             throw new InvalidOperationException("An account with this email already exists.");
 
         var user = new User
@@ -29,15 +32,15 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
             IsActive = true
         };
 
-        db.Users.Add(user);
-        await db.SaveChangesAsync(cancellationToken);
+        Users.Add(user);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return user;
     }
 
     public async Task<(string AccessToken, string RefreshToken)> SignInAsync(string email, string password, CancellationToken cancellationToken)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
-        var user = await db.Users.SingleOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
+        var user = await Users.SingleOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
         if (user is null || !user.IsActive || !VerifyPassword(password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid email or password.");
 
@@ -47,29 +50,32 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
     public async Task<(string AccessToken, string RefreshToken)> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
     {
         var hash = HashToken(refreshToken);
-        var current = await db.RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == hash, cancellationToken);
+        var current = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == hash, cancellationToken);
         if (current is null || current.RevokedAt is not null || current.ExpiresAt <= DateTimeOffset.UtcNow)
             throw new UnauthorizedAccessException("Invalid or expired refresh token.");
 
-        var user = await db.Users.SingleOrDefaultAsync(x => x.Id == current.UserId, cancellationToken);
+        var user = await Users.SingleOrDefaultAsync(x => x.Id == current.UserId, cancellationToken);
         if (user is null || !user.IsActive)
             throw new UnauthorizedAccessException("Account is not active.");
 
         var tokens = await IssueTokensAsync(user, cancellationToken);
-        var replacement = await db.RefreshTokens.SingleAsync(x => x.TokenHash == HashToken(tokens.RefreshToken), cancellationToken);
+        var replacement = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == HashToken(tokens.RefreshToken), cancellationToken);
+        if (replacement is null)
+            throw new InvalidOperationException("Unable to create replacement refresh token.");
+
         current.RevokedAt = DateTimeOffset.UtcNow;
         current.ReplacedByTokenId = replacement.Id;
-        await db.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return tokens;
     }
 
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken)
     {
-        var token = await db.RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == HashToken(refreshToken), cancellationToken);
+        var token = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == HashToken(refreshToken), cancellationToken);
         if (token is not null && token.RevokedAt is null)
         {
             token.RevokedAt = DateTimeOffset.UtcNow;
-            await db.SaveChangesAsync(cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
         }
     }
 
@@ -83,7 +89,7 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
         var accessToken = CreateAccessToken(user, now, jwtKey);
         var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(RefreshTokenBytes));
 
-        db.RefreshTokens.Add(new RefreshToken
+        RefreshTokens.Add(new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
@@ -91,7 +97,7 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
             CreatedAt = now,
             ExpiresAt = now.AddDays(30)
         });
-        await db.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         return (accessToken, refreshToken);
     }
 
@@ -114,7 +120,7 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
     {
         var salt = RandomNumberGenerator.GetBytes(16);
         var hash = Rfc2898DeriveBytes.Pbkdf2(password, salt, PasswordIterations, HashAlgorithmName.SHA256, PasswordKeyLength);
-        return $"PBKDF2-SHA256$v1${PasswordIterations}${Convert.ToBase64String(salt)}${Convert.ToBase64String(hash)}";
+        return "PBKDF2-SHA256$v1$" + PasswordIterations + "$" + Convert.ToBase64String(salt) + "$" + Convert.ToBase64String(hash);
     }
 
     private static bool VerifyPassword(string password, string encoded)
@@ -136,8 +142,6 @@ public sealed class AuthService(MilanSetuDbContext db, IConfiguration configurat
         }
     }
 
-    private static string HashToken(string token)
-    {
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
-    }
+    private static string HashToken(string token) =>
+        Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token))).ToLowerInvariant();
 }
