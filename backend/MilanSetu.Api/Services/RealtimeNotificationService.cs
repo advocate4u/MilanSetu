@@ -8,10 +8,24 @@ public interface IRealtimeNotificationService
     Task PublishAsync(Guid userId, string type, object payload, CancellationToken cancellationToken = default);
 }
 
-public sealed class RealtimeNotificationService(IHubContext<NotificationHub> hub) : IRealtimeNotificationService
+public sealed class RealtimeNotificationService(IHubContext<NotificationHub> hub, ILogger<RealtimeNotificationService> logger) : IRealtimeNotificationService
 {
-    public Task PublishAsync(Guid userId, string type, object payload, CancellationToken cancellationToken = default) =>
-        hub.Clients.Group(NotificationHub.UserGroup(userId)).SendAsync("notification", new { type, payload }, cancellationToken);
+    public async Task PublishAsync(Guid userId, string type, object payload, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await hub.Clients.Group(NotificationHub.UserGroup(userId))
+                .SendAsync("notification", new { type, payload }, cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The database write has already completed; a disconnected client should not turn it into a failed API request.
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Realtime notification delivery failed for user {UserId} and event {EventType}.", userId, type);
+        }
+    }
 }
 
 [Authorize]
