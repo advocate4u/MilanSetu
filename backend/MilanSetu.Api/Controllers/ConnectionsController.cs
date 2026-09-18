@@ -1,4 +1,5 @@
-using MilanSetu.Api.Data;
+using MilanSetu.Api.Data.Repositories;
+using MilanSetu.Api.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -8,14 +9,16 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/connections")]
-public sealed class ConnectionsController(MilanSetuDbContext db) : ControllerBase
+public sealed class ConnectionsController(IUnitOfWork unitOfWork) : ControllerBase
 {
+    private IRepository<Connection> Connections => unitOfWork.Repository<Connection>();
+
     [HttpGet]
     public async Task<IActionResult> Get(CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
 
-        var items = await db.Connections.AsNoTracking()
+        var items = await Connections.Query()
             .Where(x => x.UserAId == userId || x.UserBId == userId)
             .OrderByDescending(x => x.CreatedAt)
             .Select(x => new
