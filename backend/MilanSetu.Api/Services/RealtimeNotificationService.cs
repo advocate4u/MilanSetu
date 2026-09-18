@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 
 namespace MilanSetu.Api.Services;
@@ -13,6 +14,7 @@ public sealed class RealtimeNotificationService(IHubContext<NotificationHub> hub
         hub.Clients.Group(NotificationHub.UserGroup(userId)).SendAsync("notification", new { type, payload }, cancellationToken);
 }
 
+[Authorize]
 public sealed class NotificationHub : Hub
 {
     public const string Route = "/hubs/notifications";
