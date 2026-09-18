@@ -1,4 +1,4 @@
-using MilanSetu.Api.Data;
+using MilanSetu.Api.Data.Repositories;
 using MilanSetu.Api.Domain;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,15 +9,17 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/notifications")]
-public sealed class NotificationsController(MilanSetuDbContext db) : ControllerBase
+public sealed class NotificationsController(IUnitOfWork unitOfWork) : ControllerBase
 {
+    private IRepository<Notification> Notifications => unitOfWork.Repository<Notification>();
+
     [HttpGet]
     public async Task<IActionResult> List([FromQuery] bool unreadOnly = false, [FromQuery] int limit = 50, CancellationToken ct = default)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
         limit = Math.Clamp(limit, 1, 100);
 
-        var query = db.Notifications.AsNoTracking().Where(x => x.UserId == userId);
+        var query = Notifications.Query().Where(x => x.UserId == userId);
         if (unreadOnly) query = query.Where(x => x.ReadAt == null);
 
         var items = await query
@@ -44,7 +46,7 @@ public sealed class NotificationsController(MilanSetuDbContext db) : ControllerB
     public async Task<IActionResult> Summary(CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var query = db.Notifications.AsNoTracking().Where(x => x.UserId == userId);
+        var query = Notifications.Query().Where(x => x.UserId == userId);
         var unreadCount = await query.CountAsync(x => x.ReadAt == null, ct);
         var latest = await query.OrderByDescending(x => x.CreatedAt).Select(x => (DateTimeOffset?)x.CreatedAt).FirstOrDefaultAsync(ct);
         var unreadByType = await query.Where(x => x.ReadAt == null).GroupBy(x => x.Type).Select(x => new { type = x.Key.ToString(), count = x.Count() }).ToListAsync(ct);
@@ -55,11 +57,11 @@ public sealed class NotificationsController(MilanSetuDbContext db) : ControllerB
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var notification = await db.Notifications.SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
+        var notification = await Notifications.Query(false).SingleOrDefaultAsync(x => x.Id == id && x.UserId == userId, ct);
         if (notification is null) return NotFound();
 
         notification.ReadAt ??= DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
         return NoContent();
     }
 
@@ -67,13 +69,13 @@ public sealed class NotificationsController(MilanSetuDbContext db) : ControllerB
     public async Task<IActionResult> MarkAllRead(CancellationToken ct)
     {
         if (!TryGetUserId(out var userId)) return Unauthorized();
-        var notifications = await db.Notifications
+        var notifications = await Notifications.Query(false)
             .Where(x => x.UserId == userId && x.ReadAt == null)
             .ToListAsync(ct);
 
         var now = DateTimeOffset.UtcNow;
         foreach (var notification in notifications) notification.ReadAt = now;
-        await db.SaveChangesAsync(ct);
+        await unitOfWork.SaveChangesAsync(ct);
         return NoContent();
     }
 
