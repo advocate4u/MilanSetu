@@ -27,10 +27,10 @@ jobs:
       - name: Scaffold PostgreSQL model to temporary output
         run: |
           rm -rf /tmp/migrations-postgresql
-          dotnet ef migrations add CiPostgreSqlModel --no-build --context MilanSetuDbContext --output-dir /tmp/migrations-postgresql -- --provider=PostgreSql
-          test -f /tmp/migrations-postgresql/*_CiPostgreSqlModel.cs
+          dotnet ef migrations add CiPostgreSqlModel --no-build --context MilanSetuDbContext --output-dir CiMigrations/PostgreSql -- --provider=PostgreSql
+          test -f CiMigrations/PostgreSql/*_CiPostgreSqlModel.cs
       - name: Scaffold MySQL model to temporary output
         run: |
           rm -rf /tmp/migrations-mysql
-          dotnet ef migrations add CiMySqlModel --no-build --context MilanSetuDbContext --output-dir /tmp/migrations-mysql -- --provider=MySQL
-          test -f /tmp/migrations-mysql/*_CiMySqlModel.cs
+          dotnet ef migrations add CiMySqlModel --no-build --context MilanSetuDbContext --output-dir CiMigrations/MySql -- --provider=MySQL
+          test -f CiMigrations/MySql/*_CiMySqlModel.cs
