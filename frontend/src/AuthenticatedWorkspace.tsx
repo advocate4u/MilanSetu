@@ -8,6 +8,7 @@ import MessagingPanel from './MessagingPanel'
 import NotificationPanel from './NotificationPanel'
 import ConnectionsPanel from './ConnectionsPanel'
 import ReviewerPanel from './ReviewerPanel'
+import VerificationPanel from './VerificationPanel'
 import AdminModerationPanel from './AdminModerationPanel'
 import AdminDashboardPanel from './AdminDashboardPanel'
 import AdminAuditPanel from './AdminAuditPanel'
@@ -30,6 +31,7 @@ export default function AuthenticatedWorkspace() {
     <AccountSessionPanel />
     <ProfileEditor />
     <ProfilePhotoManager />
+    <VerificationPanel />
     <DiscoveryPanel />
     <IncomingInterestsPanel />
     <ConnectionsPanel />
