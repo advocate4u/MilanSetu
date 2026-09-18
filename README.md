@@ -75,3 +75,9 @@ Configure the frontend through environment variables in `frontend/.env` (never c
 - `VITE_ADSENSE_CLIENT`, `VITE_ADSENSE_SLOT` — AdSense configuration
 
 Ads are deliberately limited to the authenticated workspace and do not use MilanSetu profile data for targeting.
+
+## Super Admin advertising controls
+
+Advertising is configured from the Super Admin workspace rather than frontend environment variables. The single minimal panel is disabled until a Super Admin enables it. Sponsor or Google AdSense settings are stored server-side, and the public ad endpoint returns only the fields needed to render the approved advertisement.
+
+For initial deployment, an existing account can be promoted once by setting the backend environment variable `SuperAdmin__Email` to that account's exact email. On startup, MilanSetu assigns that existing account the `SuperAdmin` role; it does not create accounts. Remove the bootstrap setting after provisioning if it is no longer needed.

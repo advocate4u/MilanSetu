@@ -64,6 +64,9 @@ public sealed class AdminUsersController(MilanSetuDbContext db) : ControllerBase
         var actor = await GetAdminId(ct);
         if (actor is null) return Forbid();
         if (actor.Value == id) return BadRequest(new { message = "An administrator cannot change their own role." });
+        var actorRole = await db.UserRoleAssignments.AsNoTracking().Where(x => x.UserId == actor.Value).Select(x => (UserRole?)x.Role).SingleOrDefaultAsync(ct);
+        if (actorRole == UserRole.Admin && input.Role == UserRole.SuperAdmin) return Forbid();
+        if (actorRole == UserRole.Admin && await db.UserRoleAssignments.AsNoTracking().AnyAsync(x => x.UserId == id && x.Role == UserRole.SuperAdmin, ct)) return Forbid();
         if (!Enum.IsDefined(input.Role)) return BadRequest(new { message = "Invalid role." });
         if (!await db.Users.AsNoTracking().AnyAsync(x => x.Id == id, ct)) return NotFound();
         var assignment = await db.UserRoleAssignments.SingleOrDefaultAsync(x => x.UserId == id, ct);
@@ -96,7 +99,7 @@ public sealed class AdminUsersController(MilanSetuDbContext db) : ControllerBase
         if (!Guid.TryParse(User.FindFirst("sub")?.Value, out var id)) return null;
         var role = await db.UserRoleAssignments.AsNoTracking().Where(x => x.UserId == id)
             .Select(x => (UserRole?)x.Role).SingleOrDefaultAsync(ct);
-        return role == UserRole.Admin ? id : null;
+        return role is UserRole.Admin or UserRole.SuperAdmin ? id : null;
     }
 
     private async Task Audit(Guid actor, string action, Guid? resourceId, object? metadata, CancellationToken ct)

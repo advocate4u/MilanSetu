@@ -174,6 +174,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+var bootstrapSuperAdminEmail = builder.Configuration["SuperAdmin:Email"]?.Trim();
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -205,13 +206,27 @@ app.Use(async (context, next) =>
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
     context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
     context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
-    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none';";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' https://pagead2.googlesyndication.com https://googleads.g.doubleclick.net; img-src 'self' data: https:; frame-src 'self' https://googleads.g.doubleclick.net https://tpc.googlesyndication.com; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self';";
     await next();
 });
 app.UseCors("Web");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+if (!string.IsNullOrWhiteSpace(bootstrapSuperAdminEmail) && app.Services.GetService<MilanSetuDbContext>() is not null)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MilanSetuDbContext>();
+    var user = await db.Users.SingleOrDefaultAsync(x => x.Email == bootstrapSuperAdminEmail);
+    if (user is not null)
+    {
+        var assignment = await db.UserRoleAssignments.SingleOrDefaultAsync(x => x.UserId == user.Id);
+        if (assignment is null) db.UserRoleAssignments.Add(new UserRoleAssignment { UserId = user.Id, Role = UserRole.SuperAdmin });
+        else if (assignment.Role != UserRole.SuperAdmin) { assignment.Role = UserRole.SuperAdmin; assignment.UpdatedAt = DateTimeOffset.UtcNow; }
+        await db.SaveChangesAsync();
+    }
+}
+
 app.MapControllers();
 app.MapHub<NotificationHub>(NotificationHub.Route);
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "MilanSetu.Api" }));
