@@ -9,6 +9,8 @@ import NotificationPanel from './NotificationPanel'
 import ConnectionsPanel from './ConnectionsPanel'
 import ReviewerPanel from './ReviewerPanel'
 import AdminModerationPanel from './AdminModerationPanel'
+import AdminDashboardPanel from './AdminDashboardPanel'
+import AdminAuditPanel from './AdminAuditPanel'
 import AdminUsersPanel from './AdminUsersPanel'
 
 const accessTokenKey = 'milansetu_access_token'
@@ -34,7 +36,9 @@ export default function AuthenticatedWorkspace() {
     <MessagingPanel />
     <NotificationPanel />
     <ReviewerPanel />
+    <AdminDashboardPanel />
     <AdminModerationPanel />
+    <AdminAuditPanel />
     <AdminUsersPanel />
   </>
 }
