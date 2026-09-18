@@ -174,6 +174,7 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
     options.KnownProxies.Clear();
 });
 
+var bootstrapSuperAdminEmail = builder.Configuration["SuperAdmin:Email"]?.Trim();
 var app = builder.Build();
 
 app.UseForwardedHeaders();
@@ -212,6 +213,20 @@ app.UseCors("Web");
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+if (!string.IsNullOrWhiteSpace(bootstrapSuperAdminEmail) && app.Services.GetService<MilanSetuDbContext>() is not null)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<MilanSetuDbContext>();
+    var user = await db.Users.SingleOrDefaultAsync(x => x.Email == bootstrapSuperAdminEmail);
+    if (user is not null)
+    {
+        var assignment = await db.UserRoleAssignments.SingleOrDefaultAsync(x => x.UserId == user.Id);
+        if (assignment is null) db.UserRoleAssignments.Add(new UserRoleAssignment { UserId = user.Id, Role = UserRole.SuperAdmin });
+        else if (assignment.Role != UserRole.SuperAdmin) { assignment.Role = UserRole.SuperAdmin; assignment.UpdatedAt = DateTimeOffset.UtcNow; }
+        await db.SaveChangesAsync();
+    }
+}
+
 app.MapControllers();
 app.MapHub<NotificationHub>(NotificationHub.Route);
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "MilanSetu.Api" }));
