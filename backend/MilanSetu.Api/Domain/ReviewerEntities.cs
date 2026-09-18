@@ -4,7 +4,8 @@ public enum UserRole
 {
     User = 1,
     Reviewer = 2,
-    Admin = 3
+    Admin = 3,
+    SuperAdmin = 4
 }
 
 public sealed class UserRoleAssignment
