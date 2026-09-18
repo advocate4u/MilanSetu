@@ -22,14 +22,14 @@ See `docs/DATABASE-PROVIDERS.md` for MySQL/PostgreSQL environment and Docker exa
 ## Local PostgreSQL + API
 
 From the repository root:
-docker compose --profile postgres up --build
+docker compose up --build
 
 This starts PostgreSQL on port 5432 and the API on port 7001. The compose file is for local development only; replace all example secrets before using any shared environment.
 
 ## Local MySQL + API
 
 From the repository root:
-DATABASE_PROVIDER=MySQL DATABASE_CONNECTION_STRING='Server=mysql;Port=3306;Database=milansetu;User=milansetu;Password=change-me-local-only' docker compose --profile mysql up --build
+docker compose -f docker-compose.mysql.yml up --build
 
 This starts MySQL 8 on port 3306 and the API on port 7001.
 
