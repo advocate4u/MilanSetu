@@ -19,7 +19,7 @@ export default function ProfilePhotoManager() {
     const load = async () => {
       if (!sessionStorage.getItem('milansetu_access_token')) return
       try {
-        const settingsResponse = await fetch('/api/admin/platform-settings')
+        const settingsResponse = await fetch('/api/platform/settings')
         if (settingsResponse.ok) { const settings = await settingsResponse.json(); if (Number.isFinite(settings.maxProfilePhotos)) setMaxPhotos(Math.max(1, Math.min(20, settings.maxProfilePhotos))) }
       } catch {}
       try {
