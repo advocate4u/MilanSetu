@@ -19,6 +19,7 @@ import LegalAcceptancePanel from './LegalAcceptancePanel'
 import SafetyPanel from './SafetyPanel'
 import AdminAnalyticsPanel from './AdminAnalyticsPanel'
 import AdminMetricsPanel from './AdminMetricsPanel'
+import AdvertisingPanel from './AdvertisingPanel'
 import { startRealtime, stopRealtime } from './realtime'
 
 const accessTokenKey = 'milansetu_access_token'
@@ -41,6 +42,7 @@ export default function AuthenticatedWorkspace() {
   return <>
     <AccountSessionPanel />
     <LegalAcceptancePanel />
+    <AdvertisingPanel />
     <ProfileEditor />
     <ProfilePhotoManager />
     <PrivacyPanel />
