@@ -8,7 +8,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [EnableRateLimiting("auth")]
-public sealed class AuthController(AuthService authService, ReviewerAuthorizationService reviewerAuthorization, IConfiguration configuration) : ControllerBase
+public sealed class AuthController(AuthService authService, ExternalAuthService externalAuthService, ReviewerAuthorizationService reviewerAuthorization, IConfiguration configuration) : ControllerBase
 {
     private const string DefaultCookieName = "milansetu_refresh";
 
@@ -69,3 +69,5 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
 
 public sealed record RegisterRequest(string Email, string Password);
 public sealed record LoginRequest(string Email, string Password);
+
+public sealed record ExternalLoginRequest(string Credential);
