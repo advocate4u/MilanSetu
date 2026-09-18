@@ -19,6 +19,7 @@ import LegalAcceptancePanel from './LegalAcceptancePanel'
 import SafetyPanel from './SafetyPanel'
 import AdminAnalyticsPanel from './AdminAnalyticsPanel'
 import AdminMetricsPanel from './AdminMetricsPanel'
+import SuperAdminAdvertisingPanel from './SuperAdminAdvertisingPanel'
 import AdvertisingPanel from './AdvertisingPanel'
 import { startRealtime, stopRealtime } from './realtime'
 
@@ -61,5 +62,6 @@ export default function AuthenticatedWorkspace() {
     <AdminModerationPanel />
     <AdminAuditPanel />
     <AdminUsersPanel />
+    <SuperAdminAdvertisingPanel />
   </>
 }
