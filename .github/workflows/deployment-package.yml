@@ -1,0 +1,64 @@
+name: Deployment Package
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: milansetu
+          POSTGRES_USER: milansetu
+          POSTGRES_PASSWORD: ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U milansetu -d milansetu"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: milansetu
+          MYSQL_USER: milansetu
+          MYSQL_PASSWORD: ci
+          MYSQL_ROOT_PASSWORD: root-ci
+        ports: ["3306:3306"]
+        options: >-
+          --health-cmd "mysqladmin ping -h 127.0.0.1 -u root -proot-ci --silent"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate and validate database artifacts
+        run: bash scripts/database/generate-initial-migrations.sh
+      - name: Publish API
+        run: bash scripts/deployment/publish-api.sh
+      - name: Build frontend
+        run: bash scripts/deployment/publish-frontend.sh
+      - name: Package deployment
+        run: |
+          mkdir -p artifacts/deployment
+          cp -a docs/deployment artifacts/deployment/docs
+          cp -a scripts/deployment artifacts/deployment/scripts
+          tar -czf artifacts/milansetu-deployment.tar.gz -C artifacts deployment initial-migrations
+      - name: Upload deployment package
+        uses: actions/upload-artifact@v4
+        with:
+          name: milansetu-deployment
+          path: artifacts/milansetu-deployment.tar.gz
+          if-no-files-found: error
