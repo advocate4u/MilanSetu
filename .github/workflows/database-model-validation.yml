@@ -1,0 +1,36 @@
+name: Database Model Validation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate-ef-model:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend/MilanSetu.Api
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore
+        run: dotnet restore MilanSetu.Api.csproj
+      - name: Build
+        run: dotnet build MilanSetu.Api.csproj --configuration Release --no-restore
+      - name: Install EF Core CLI
+        run: dotnet tool install --global dotnet-ef --version 8.0.8
+      - name: Scaffold PostgreSQL model to temporary output
+        run: |
+          rm -rf /tmp/migrations-postgresql
+          dotnet ef migrations add CiPostgreSqlModel --no-build --context MilanSetuDbContext --provider=PostgreSql --output-dir /tmp/migrations-postgresql
+          test -f /tmp/migrations-postgresql/*_CiPostgreSqlModel.cs
+      - name: Scaffold MySQL model to temporary output
+        run: |
+          rm -rf /tmp/migrations-mysql
+          dotnet ef migrations add CiMySqlModel --no-build --context MilanSetuDbContext --provider=MySQL --output-dir /tmp/migrations-mysql
+          test -f /tmp/migrations-mysql/*_CiMySqlModel.cs
