@@ -39,3 +39,8 @@ The application still requires external infrastructure and secrets:
 - real SMS/email provider credentials for production OTP delivery
 
 These values are intentionally not committed to the repository.
+
+
+## Automated database validation
+
+CI validates that the API can build and its test suite executes on every pull request. Production must use reviewed EF Core migrations; `EnsureCreated` is intentionally not used by the API startup path.
