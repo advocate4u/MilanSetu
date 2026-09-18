@@ -10,6 +10,8 @@ namespace MilanSetu.Api.Services;
 
 public sealed class SecurityAuditService(IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
 {
+    private IRepository<User> Users => unitOfWork.Repository<User>();
+    private IRepository<RefreshToken> RefreshTokens => unitOfWork.Repository<RefreshToken>();
     private IRepository<LoginSession> Sessions => unitOfWork.Repository<LoginSession>();
     private IRepository<SecurityAuditLog> Logs => unitOfWork.Repository<SecurityAuditLog>();
 
@@ -98,6 +100,12 @@ public sealed class SecurityAuditService(IUnitOfWork unitOfWork, IHttpContextAcc
         await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
+    public Task<Guid?> FindUserIdByEmailAsync(string email, CancellationToken cancellationToken)
+        => Users.Query().Where(x => x.Email == email.Trim().ToLowerInvariant()).Select(x => (Guid?)x.Id).SingleOrDefaultAsync(cancellationToken);
+
+    public Task<Guid?> GetSessionUserIdAsync(Guid sessionId, CancellationToken cancellationToken)
+        => Sessions.Query().Where(x => x.Id == sessionId).Select(x => (Guid?)x.UserId).SingleOrDefaultAsync(cancellationToken);
+
     public async Task<LoginSession?> GetSessionEntityAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
         => await Sessions.Query(false).SingleOrDefaultAsync(x => x.Id == sessionId && x.UserId == userId, cancellationToken);
 
@@ -137,6 +145,8 @@ public sealed class SecurityAuditService(IUnitOfWork unitOfWork, IHttpContextAcc
         {
             session.RevokedAt = DateTimeOffset.UtcNow;
             session.LoginStatus = "Revoked";
+            var tokens = await RefreshTokens.Query(false).Where(x => x.SessionId == sessionId && x.RevokedAt == null).ToListAsync(cancellationToken);
+            foreach (var token in tokens) token.RevokedAt = DateTimeOffset.UtcNow;
             await unitOfWork.SaveChangesAsync(cancellationToken);
         }
         return true;
