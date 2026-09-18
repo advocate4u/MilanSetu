@@ -56,7 +56,7 @@ export default function MessagingPanel() {
   }
 
   useEffect(() => {
-    void (async () => { try { const r=await fetch('/api/admin/platform-settings'); if (r.ok) { const s=await r.json(); setMessagingEnabled(s.messagingEnabled !== false) } } catch {} })()
+    void (async () => { try { const r=await fetch('/api/platform/settings'); if (r.ok) { const s=await r.json(); setMessagingEnabled(s.messagingEnabled !== false) } } catch {} })()
     void loadConversations()
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
