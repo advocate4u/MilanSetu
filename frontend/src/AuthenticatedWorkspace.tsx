@@ -15,6 +15,7 @@ import AdminDashboardPanel from './AdminDashboardPanel'
 import AdminAuditPanel from './AdminAuditPanel'
 import AdminUsersPanel from './AdminUsersPanel'
 import PrivacyPanel from './PrivacyPanel'
+import LegalAcceptancePanel from './LegalAcceptancePanel'
 import SafetyPanel from './SafetyPanel'
 import AdminAnalyticsPanel from './AdminAnalyticsPanel'
 import AdminMetricsPanel from './AdminMetricsPanel'
@@ -39,6 +40,7 @@ export default function AuthenticatedWorkspace() {
   if (!authenticated) return null
   return <>
     <AccountSessionPanel />
+    <LegalAcceptancePanel />
     <ProfileEditor />
     <ProfilePhotoManager />
     <PrivacyPanel />
