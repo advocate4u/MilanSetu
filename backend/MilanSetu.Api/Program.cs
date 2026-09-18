@@ -1,12 +1,14 @@
 using System.Text;
 using System.Threading.RateLimiting;
 using MilanSetu.Api.Data;
+using MilanSetu.Api.Data.Repositories;
 using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
@@ -26,12 +28,40 @@ builder.Services.AddSingleton<IVerificationDocumentStorage, FileSystemVerificati
 builder.Services.AddSingleton<IVerificationDocumentScanner, QuarantineOnlyVerificationDocumentScanner>();
 builder.Services.AddSingleton<ModerationAutomationService>();
 builder.Services.AddSingleton<RequestMetricsService>();
+builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var databaseProvider = builder.Configuration["Database:Provider"]?.Trim();
+if (string.IsNullOrWhiteSpace(databaseProvider))
+    databaseProvider = "PostgreSql";
+
 if (!string.IsNullOrWhiteSpace(connectionString))
-    builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
+{
+    switch (databaseProvider.ToLowerInvariant())
+    {
+        case "postgresql":
+        case "postgres":
+        case "npgsql":
+            builder.Services.AddDbContext<MilanSetuDbContext>(options => options.UseNpgsql(connectionString));
+            databaseProvider = "PostgreSQL";
+            break;
+
+        case "mysql":
+        case "mariadb":
+            builder.Services.AddDbContext<MilanSetuDbContext>(options =>
+                options.UseMySql(connectionString, new MySqlServerVersion(new Version(8, 0, 36))));
+            databaseProvider = "MySQL";
+            break;
+
+        default:
+            throw new InvalidOperationException(
+                "Unsupported Database:Provider. Supported values are PostgreSQL or MySQL.");
+    }
+}
 else if (isProduction)
+{
     throw new InvalidOperationException("Production requires ConnectionStrings:DefaultConnection.");
+}
 
 var jwtKey = builder.Configuration["Auth:Jwt:Key"];
 var issuer = builder.Configuration["Auth:Jwt:Issuer"];
@@ -183,17 +213,19 @@ app.MapGet("/api/health", () => Results.Ok(new { status = "ok", service = "Milan
 app.MapGet("/api/health/database", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
     var db = services.GetService<MilanSetuDbContext>();
-    if (db is null) return Results.Ok(new { status = "not-configured", database = "postgresql" });
+    if (db is null)
+        return Results.Ok(new { status = "not-configured", database = databaseProvider });
+
     try
     {
         var canConnect = await db.Database.CanConnectAsync(cancellationToken);
         return canConnect
-            ? Results.Ok(new { status = "ok", database = "postgresql" })
-            : Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
+            ? Results.Ok(new { status = "ok", database = databaseProvider })
+            : Results.Json(new { status = "unavailable", database = databaseProvider }, statusCode: 503);
     }
     catch
     {
-        return Results.Json(new { status = "unavailable", database = "postgresql" }, statusCode: 503);
+        return Results.Json(new { status = "unavailable", database = databaseProvider }, statusCode: 503);
     }
 });
 app.Run();
