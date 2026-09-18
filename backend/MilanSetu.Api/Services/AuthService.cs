@@ -9,7 +9,7 @@ using Microsoft.IdentityModel.Tokens;
 
 namespace MilanSetu.Api.Services;
 
-public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configuration)
+public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configuration, SecurityAuditService securityAudit)
 {
     private const int PasswordIterations = 210_000;
     private const int PasswordKeyLength = 32;
@@ -37,17 +37,17 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         return user;
     }
 
-    public async Task<(string AccessToken, string RefreshToken)> SignInAsync(string email, string password, CancellationToken cancellationToken)
+    public async Task<(string AccessToken, string RefreshToken, Guid SessionId)> SignInAsync(string email, string password, ClientSecurityContext context, CancellationToken cancellationToken)
     {
         var normalizedEmail = email.Trim().ToLowerInvariant();
         var user = await Users.SingleOrDefaultAsync(x => x.Email == normalizedEmail, cancellationToken);
         if (user is null || !user.IsActive || !VerifyPassword(password, user.PasswordHash))
             throw new UnauthorizedAccessException("Invalid email or password.");
 
-        return await IssueTokensAsync(user, cancellationToken);
+        return await IssueTokensAsync(user, "password", context, cancellationToken);
     }
 
-    public async Task<(string AccessToken, string RefreshToken)> RefreshAsync(string refreshToken, CancellationToken cancellationToken)
+    public async Task<(string AccessToken, string RefreshToken, Guid SessionId)> RefreshAsync(string refreshToken, ClientSecurityContext context, CancellationToken cancellationToken)
     {
         var hash = HashToken(refreshToken);
         var current = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == hash, cancellationToken);
@@ -58,7 +58,7 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         if (user is null || !user.IsActive)
             throw new UnauthorizedAccessException("Account is not active.");
 
-        var tokens = await IssueTokensAsync(user, cancellationToken);
+        var tokens = await IssueTokensAsync(user, "password", context, cancellationToken, current.SessionId);
         var replacement = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == HashToken(tokens.RefreshToken), cancellationToken);
         if (replacement is null)
             throw new InvalidOperationException("Unable to create replacement refresh token.");
@@ -68,6 +68,9 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return tokens;
     }
+
+    public Task<(string AccessToken, string RefreshToken, Guid SessionId)> IssueTokensForExternalLoginAsync(User user, string provider, ClientSecurityContext context, CancellationToken cancellationToken)
+        => IssueTokensAsync(user, provider, context, cancellationToken);
 
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken)
     {
@@ -79,29 +82,48 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         }
     }
 
-    private async Task<(string AccessToken, string RefreshToken)> IssueTokensAsync(User user, CancellationToken cancellationToken)
+    private async Task<(string AccessToken, string RefreshToken, Guid SessionId)> IssueTokensAsync(
+        User user,
+        string provider,
+        ClientSecurityContext context,
+        CancellationToken cancellationToken,
+        Guid? existingSessionId = null)
     {
         var jwtKey = configuration["Auth:Jwt:Key"];
         if (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteCount(jwtKey) < 32)
             throw new InvalidOperationException("Auth:Jwt:Key must be configured with at least 256 bits of entropy.");
 
         var now = DateTimeOffset.UtcNow;
-        var accessToken = CreateAccessToken(user, now, jwtKey);
+        LoginSession session;
+        if (existingSessionId is Guid existingId)
+        {
+            session = await securityAudit.GetSessionEntityAsync(user.Id, existingId, cancellationToken)
+                ?? await securityAudit.CreateSessionAsync(user.Id, provider, context, cancellationToken);
+            session.LastSeenAt = now;
+            session.LoginStatus = "Active";
+        }
+        else
+        {
+            session = await securityAudit.CreateSessionAsync(user.Id, provider, context, cancellationToken);
+        }
+
+        var accessToken = CreateAccessToken(user, session.Id, now, jwtKey);
         var refreshToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(RefreshTokenBytes));
 
         RefreshTokens.Add(new RefreshToken
         {
             Id = Guid.NewGuid(),
             UserId = user.Id,
+            SessionId = session.Id,
             TokenHash = HashToken(refreshToken),
             CreatedAt = now,
             ExpiresAt = now.AddDays(30)
         });
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        return (accessToken, refreshToken);
+        return (accessToken, refreshToken, session.Id);
     }
 
-    private string CreateAccessToken(User user, DateTimeOffset now, string key)
+    private string CreateAccessToken(User user, Guid sessionId, DateTimeOffset now, string key)
     {
         var issuer = configuration["Auth:Jwt:Issuer"] ?? "MilanSetu";
         var audience = configuration["Auth:Jwt:Audience"] ?? "MilanSetu.Web";
@@ -109,7 +131,8 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         {
             new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new Claim("sid", sessionId.ToString())
         };
         var credentials = new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(key)), SecurityAlgorithms.HmacSha256);
         var token = new JwtSecurityToken(issuer, audience, claims, now.UtcDateTime, now.AddMinutes(15).UtcDateTime, credentials);

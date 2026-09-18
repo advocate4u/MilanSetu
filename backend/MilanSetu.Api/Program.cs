@@ -17,9 +17,13 @@ const long MaxRequestBodyBytes = 10L * 1024 * 1024;
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBodyBytes);
 
 builder.Services.AddControllers();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRealtimeNotificationService, RealtimeNotificationService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SecurityAuditService>();
+builder.Services.AddHttpClient("facebook-graph", client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddScoped<ExternalAuthService>();
 builder.Services.AddScoped<ReviewerAuthorizationService>();
 builder.Services.AddSingleton<MessageModerationService>();
 builder.Services.AddSingleton<VerificationChallengeService>();

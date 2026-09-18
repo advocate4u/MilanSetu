@@ -8,7 +8,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Route("api/auth")]
 [EnableRateLimiting("auth")]
-public sealed class AuthController(AuthService authService, ReviewerAuthorizationService reviewerAuthorization, IConfiguration configuration) : ControllerBase
+public sealed class AuthController(AuthService authService, ExternalAuthService externalAuthService, SecurityAuditService securityAudit, ReviewerAuthorizationService reviewerAuthorization, IConfiguration configuration) : ControllerBase
 {
     private const string DefaultCookieName = "milansetu_refresh";
 
@@ -31,8 +31,19 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
             return BadRequest(new { message = "Email and password are required." });
         if (request.Email.Length > 320 || request.Password.Length > 128)
             return BadRequest(new { message = "Email or password is too long." });
-        try { var tokens = await authService.SignInAsync(request.Email, request.Password, cancellationToken); SetRefreshCookie(tokens.RefreshToken); return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900 }); }
-        catch (UnauthorizedAccessException) { return Unauthorized(new { message = "Invalid email or password." }); }
+        var context = securityAudit.Capture();
+        try
+        {
+            var tokens = await authService.SignInAsync(request.Email, request.Password, context, cancellationToken);
+            await securityAudit.RecordAsync(await securityAudit.FindUserIdByEmailAsync(request.Email, cancellationToken), tokens.SessionId, "LOGIN_SUCCESS", true, "password", context, cancellationToken: cancellationToken);
+            SetRefreshCookie(tokens.RefreshToken);
+            return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900, sessionId = tokens.SessionId });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, "password", context, "INVALID_CREDENTIALS", cancellationToken: cancellationToken);
+            return Unauthorized(new { message = "Invalid email or password." });
+        }
     }
 
     [AllowAnonymous]
@@ -41,8 +52,20 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
     {
         var refreshToken = Request.Cookies[CookieName];
         if (string.IsNullOrWhiteSpace(refreshToken)) return Unauthorized(new { message = "Refresh token is missing." });
-        try { var tokens = await authService.RefreshAsync(refreshToken, cancellationToken); SetRefreshCookie(tokens.RefreshToken); return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900 }); }
-        catch (UnauthorizedAccessException) { ClearRefreshCookie(); return Unauthorized(new { message = "Session expired. Please sign in again." }); }
+        var context = securityAudit.Capture();
+        try
+        {
+            var tokens = await authService.RefreshAsync(refreshToken, context, cancellationToken);
+            await securityAudit.RecordAsync(await securityAudit.GetSessionUserIdAsync(tokens.SessionId, cancellationToken), tokens.SessionId, "TOKEN_REFRESH", true, "refresh", context, cancellationToken: cancellationToken);
+            SetRefreshCookie(tokens.RefreshToken);
+            return Ok(new { accessToken = tokens.AccessToken, expiresInSeconds = 900, sessionId = tokens.SessionId });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await securityAudit.RecordAsync(null, null, "TOKEN_REFRESH_FAILED", false, "refresh", context, "INVALID_OR_EXPIRED_TOKEN", cancellationToken: cancellationToken);
+            ClearRefreshCookie();
+            return Unauthorized(new { message = "Session expired. Please sign in again." });
+        }
     }
 
     [Authorize]
@@ -51,7 +74,52 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
     {
         var refreshToken = Request.Cookies[CookieName];
         if (!string.IsNullOrWhiteSpace(refreshToken)) await authService.RevokeAsync(refreshToken, cancellationToken);
+        var context = securityAudit.Capture();
+        var userId = Guid.TryParse(User.FindFirst("sub")?.Value, out var uid) ? uid : (Guid?)null;
+        var sessionId = Guid.TryParse(User.FindFirst("sid")?.Value, out var sid) ? sid : (Guid?)null;
+        if (sessionId is Guid currentSession) await securityAudit.EndSessionAsync(currentSession, false, cancellationToken);
+        await securityAudit.RecordAsync(userId, sessionId, "LOGOUT", true, "session", context, cancellationToken: cancellationToken);
         ClearRefreshCookie(); return NoContent();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("external/{provider}")]
+    public async Task<IActionResult> ExternalLogin(string provider, ExternalLoginRequest request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Credential))
+            return BadRequest(new { message = "External provider credential is required." });
+
+        var context = securityAudit.Capture();
+        try
+        {
+            var tokens = await externalAuthService.SignInAsync(provider, request.Credential, context, cancellationToken);
+            await securityAudit.RecordAsync(tokens.UserId, tokens.SessionId, "LOGIN_SUCCESS", true, tokens.Provider, context,
+                metadata: new { isNewUser = tokens.IsNewUser }, cancellationToken: cancellationToken);
+            SetRefreshCookie(tokens.RefreshToken);
+            return Ok(new
+            {
+                accessToken = tokens.AccessToken,
+                expiresInSeconds = 900,
+                sessionId = tokens.SessionId,
+                provider = tokens.Provider,
+                isNewUser = tokens.IsNewUser
+            });
+        }
+        catch (ExternalAccountLinkRequiredException ex)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "ACCOUNT_LINK_REQUIRED", cancellationToken: cancellationToken);
+            return Conflict(new { code = "ACCOUNT_LINK_REQUIRED", message = ex.Message });
+        }
+        catch (UnauthorizedAccessException)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "INVALID_EXTERNAL_CREDENTIAL", cancellationToken: cancellationToken);
+            return Unauthorized(new { message = "Invalid external login credential." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            await securityAudit.RecordAsync(null, null, "LOGIN_FAILED", false, provider, context, "PROVIDER_NOT_CONFIGURED", cancellationToken: cancellationToken);
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [Authorize]
@@ -69,3 +137,5 @@ public sealed class AuthController(AuthService authService, ReviewerAuthorizatio
 
 public sealed record RegisterRequest(string Email, string Password);
 public sealed record LoginRequest(string Email, string Password);
+
+public sealed record ExternalLoginRequest(string Credential);

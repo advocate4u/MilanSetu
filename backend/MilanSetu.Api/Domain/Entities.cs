@@ -50,6 +50,7 @@ public class RefreshToken
 {
     public Guid Id { get; set; }
     public Guid UserId { get; set; }
+    public Guid? SessionId { get; set; }
     public string TokenHash { get; set; } = null!;
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset ExpiresAt { get; set; }

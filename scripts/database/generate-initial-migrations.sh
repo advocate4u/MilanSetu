@@ -15,6 +15,7 @@ generate() {
   dotnet build MilanSetu.Api.csproj --configuration Release --no-restore
   dotnet ef migrations add InitialCreate --context MilanSetuDbContext --output-dir Migrations -- --provider="$provider" --connection="$connection"
   dotnet ef migrations script 0 InitialCreate --context MilanSetuDbContext --idempotent --output "$OUT/$provider/001_InitialCreate.sql" -- --provider="$provider" --connection="$connection"
+  test -s "$OUT/$provider/001_InitialCreate.sql"
   cp -a Migrations/. "$OUT/$provider/"
   popd >/dev/null
 }
