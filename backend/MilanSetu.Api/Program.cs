@@ -10,6 +10,7 @@ using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
+const long MaxRequestBodyBytes = 10L * 1024 * 1024;
 
 builder.Services.AddControllers();
 builder.Services.AddScoped<AuthService>();
@@ -35,6 +36,9 @@ if (isProduction && (string.IsNullOrWhiteSpace(jwtKey) || Encoding.UTF8.GetByteC
     throw new InvalidOperationException("Production requires Auth:Jwt:Key with at least 32 UTF-8 bytes.");
 if (isProduction && (string.IsNullOrWhiteSpace(issuer) || string.IsNullOrWhiteSpace(audience)))
     throw new InvalidOperationException("Production requires Auth:Jwt:Issuer and Auth:Jwt:Audience.");
+var verificationHashKey = builder.Configuration["Verification:HashKey"];
+if (isProduction && (string.IsNullOrWhiteSpace(verificationHashKey) || Encoding.UTF8.GetByteCount(verificationHashKey) < 32))
+    throw new InvalidOperationException("Production requires Verification:HashKey with at least 32 UTF-8 bytes.");
 
 if (!string.IsNullOrWhiteSpace(jwtKey) && Encoding.UTF8.GetByteCount(jwtKey) >= 32)
 {
@@ -62,6 +66,12 @@ builder.Services.AddAuthorization();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        context.HttpContext.Response.ContentType = "application/json";
+        await context.HttpContext.Response.WriteAsJsonAsync(new { message = "Too many requests. Please try again later." }, cancellationToken);
+    };
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
     {
         var key = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
@@ -119,10 +129,20 @@ if (isProduction)
 app.UseHttpsRedirection();
 app.Use(async (context, next) =>
 {
+    if (context.Request.ContentLength is > MaxRequestBodyBytes)
+    {
+        context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        await context.Response.WriteAsJsonAsync(new { message = "Request payload is too large." });
+        return;
+    }
+
     context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     context.Response.Headers["X-Frame-Options"] = "DENY";
     context.Response.Headers["Referrer-Policy"] = "no-referrer";
     context.Response.Headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()";
+    context.Response.Headers["Cross-Origin-Resource-Policy"] = "same-origin";
+    context.Response.Headers["Cross-Origin-Opener-Policy"] = "same-origin";
+    context.Response.Headers["Content-Security-Policy"] = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none';";
     await next();
 });
 app.UseCors("Web");
