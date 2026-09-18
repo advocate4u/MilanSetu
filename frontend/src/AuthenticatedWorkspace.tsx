@@ -14,6 +14,10 @@ import AdminModerationPanel from './AdminModerationPanel'
 import AdminDashboardPanel from './AdminDashboardPanel'
 import AdminAuditPanel from './AdminAuditPanel'
 import AdminUsersPanel from './AdminUsersPanel'
+import PrivacyPanel from './PrivacyPanel'
+import SafetyPanel from './SafetyPanel'
+import AdminAnalyticsPanel from './AdminAnalyticsPanel'
+import AdminMetricsPanel from './AdminMetricsPanel'
 
 const accessTokenKey = 'milansetu_access_token'
 function isAuthenticated() { return Boolean(sessionStorage.getItem(accessTokenKey)) }
@@ -32,6 +36,8 @@ export default function AuthenticatedWorkspace() {
     <AccountSessionPanel />
     <ProfileEditor />
     <ProfilePhotoManager />
+    <PrivacyPanel />
+    <SafetyPanel />
     <VerificationPanel />
     <DiscoveryPanel />
     <IncomingInterestsPanel />
@@ -41,6 +47,8 @@ export default function AuthenticatedWorkspace() {
     <MyReportsPanel />
     <ReviewerPanel />
     <AdminDashboardPanel />
+    <AdminAnalyticsPanel />
+    <AdminMetricsPanel />
     <AdminModerationPanel />
     <AdminAuditPanel />
     <AdminUsersPanel />
