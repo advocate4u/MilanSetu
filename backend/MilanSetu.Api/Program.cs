@@ -20,6 +20,8 @@ builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRealtimeNotificationService, RealtimeNotificationService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddHttpClient("facebook-graph", client => client.Timeout = TimeSpan.FromSeconds(10));
+builder.Services.AddScoped<ExternalAuthService>();
 builder.Services.AddScoped<ReviewerAuthorizationService>();
 builder.Services.AddSingleton<MessageModerationService>();
 builder.Services.AddSingleton<VerificationChallengeService>();
