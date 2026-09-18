@@ -38,8 +38,8 @@ public sealed class AdvertisementController(MilanSetuDbContext db) : ControllerB
         if (input.Label?.Length > 80 || input.Text?.Length > 500 || input.TargetUrl?.Length > 1000 || input.ImageUrl?.Length > 1000 || input.AdSenseClient?.Length > 200 || input.AdSenseSlot?.Length > 100) return BadRequest(new { message = "Advertisement configuration is too long." });
         if (input.Enabled && input.Mode == AdvertisementMode.Sponsor && string.IsNullOrWhiteSpace(input.Text)) return BadRequest(new { message = "Sponsor text is required." });
         if (input.Enabled && input.Mode == AdvertisementMode.AdSense && (string.IsNullOrWhiteSpace(input.AdSenseClient) || string.IsNullOrWhiteSpace(input.AdSenseSlot))) return BadRequest(new { message = "AdSense client and slot are required when AdSense is enabled." });
-        if (!string.IsNullOrWhiteSpace(input.TargetUrl) && !Uri.TryCreate(input.TargetUrl, UriKind.Absolute, out var target) || target?.Scheme is not ("https" or "http")) return BadRequest(new { message = "Target URL must be an absolute HTTP(S) URL." });
-        if (!string.IsNullOrWhiteSpace(input.ImageUrl) && (!Uri.TryCreate(input.ImageUrl, UriKind.Absolute, out var image) || image?.Scheme is not ("https" or "http"))) return BadRequest(new { message = "Image URL must be an absolute HTTP(S) URL." });
+        if (!string.IsNullOrWhiteSpace(input.TargetUrl) && (!Uri.TryCreate(input.TargetUrl, UriKind.Absolute, out var target) || (target.Scheme != "https" && target.Scheme != "http"))) return BadRequest(new { message = "Target URL must be an absolute HTTP(S) URL." });
+        if (!string.IsNullOrWhiteSpace(input.ImageUrl) && (!Uri.TryCreate(input.ImageUrl, UriKind.Absolute, out var image) || (image.Scheme != "https" && image.Scheme != "http"))) return BadRequest(new { message = "Image URL must be an absolute HTTP(S) URL." });
         var actorId = Guid.Parse(User.FindFirst("sub")!.Value);
         var ad = await db.AdvertisementSettings.SingleOrDefaultAsync(x => x.Id == 1, ct);
         if (ad is null) { ad = new AdvertisementSettings { Id = 1 }; db.AdvertisementSettings.Add(ad); }
