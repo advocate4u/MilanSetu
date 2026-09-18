@@ -9,6 +9,7 @@ import NotificationPanel from './NotificationPanel'
 import ConnectionsPanel from './ConnectionsPanel'
 import ReviewerPanel from './ReviewerPanel'
 import AdminModerationPanel from './AdminModerationPanel'
+import AdminUsersPanel from './AdminUsersPanel'
 
 const accessTokenKey = 'milansetu_access_token'
 function isAuthenticated() { return Boolean(sessionStorage.getItem(accessTokenKey)) }
@@ -34,5 +35,6 @@ export default function AuthenticatedWorkspace() {
     <NotificationPanel />
     <ReviewerPanel />
     <AdminModerationPanel />
+    <AdminUsersPanel />
   </>
 }
