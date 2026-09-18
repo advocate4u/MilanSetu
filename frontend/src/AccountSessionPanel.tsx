@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import './account-session.css'
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'https://localhost:7001'
+const apiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim()?.replace(/\/$/, '') ?? ''
 
 export default function AccountSessionPanel() {
   const [busy, setBusy] = useState(false)
@@ -11,6 +11,7 @@ export default function AccountSessionPanel() {
     setBusy(true)
     setError('')
     try {
+      if (!apiBaseUrl) throw new Error('MilanSetu API is not configured for this deployment.')
       const response = await fetch(`${apiBaseUrl}/api/auth/logout`, {
         method: 'POST',
         credentials: 'include',
