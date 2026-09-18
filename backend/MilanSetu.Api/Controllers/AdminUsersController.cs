@@ -58,6 +58,22 @@ public sealed class AdminUsersController(MilanSetuDbContext db) : ControllerBase
         return Ok(item);
     }
 
+    [HttpPost("{id:guid}/role")]
+    public async Task<IActionResult> SetRole(Guid id, UserRoleRequest input, CancellationToken ct)
+    {
+        var actor = await GetAdminId(ct);
+        if (actor is null) return Forbid();
+        if (actor.Value == id) return BadRequest(new { message = "An administrator cannot change their own role." });
+        if (!Enum.IsDefined(input.Role)) return BadRequest(new { message = "Invalid role." });
+        if (!await db.Users.AsNoTracking().AnyAsync(x => x.Id == id, ct)) return NotFound();
+        var assignment = await db.UserRoleAssignments.SingleOrDefaultAsync(x => x.UserId == id, ct);
+        if (assignment is null) db.UserRoleAssignments.Add(new UserRoleAssignment { UserId = id, Role = input.Role, CreatedAt = DateTimeOffset.UtcNow, UpdatedAt = DateTimeOffset.UtcNow });
+        else { assignment.Role = input.Role; assignment.UpdatedAt = DateTimeOffset.UtcNow; }
+        await db.SaveChangesAsync(ct);
+        await Audit(actor.Value, "admin.user.role-change", id, new { role = input.Role.ToString() }, ct);
+        return Ok(new { id, role = input.Role.ToString() });
+    }
+
     [HttpPost("{id:guid}/status")]
     public async Task<IActionResult> SetStatus(Guid id, UserStatusRequest input, CancellationToken ct)
     {
@@ -92,3 +108,4 @@ public sealed class AdminUsersController(MilanSetuDbContext db) : ControllerBase
 }
 
 public sealed record UserStatusRequest(bool Active);
+public sealed record UserRoleRequest(UserRole Role);
