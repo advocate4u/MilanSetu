@@ -21,3 +21,7 @@ obj/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local MilanSetu backup configuration and credentials
+scripts/backup/godaddy/backup-config.json
+scripts/backup/godaddy/*.xml
