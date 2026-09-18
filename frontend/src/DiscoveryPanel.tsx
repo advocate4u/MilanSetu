@@ -97,6 +97,20 @@ export default function DiscoveryPanel() {
   if (!signedIn) return <section className="discovery-panel"><div className="discovery-empty"><p className="eyebrow">PRIVATE DISCOVERY</p><h2>Sign in to discover profiles</h2><p>Your discovery results are private and are only available to authenticated members.</p></div></section>
 
   return <section className="discovery-panel" aria-label="Profile discovery">
+    <style>{`
+      .discovery-card{display:flex;flex-direction:column;gap:0;overflow:hidden}
+      .profile-card-photo{width:100%;aspect-ratio:4/3;display:grid;place-items:center;background:linear-gradient(135deg,#f5e8e4,#faf7f5);font-size:44px;font-weight:800;color:#9a7770}
+      .profile-card-photo-label{font-size:12px;font-weight:600;opacity:.65}
+      .profile-card-content{padding:18px}
+      .profile-card-content h3{margin:0 0 5px;font-size:20px}
+      .profile-card-location{margin:0 0 8px;font-size:14px}
+      .profile-card-facts{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+      .profile-card-fact{padding:5px 9px;border-radius:999px;background:#f7f1ef;font-size:12px}
+      .profile-card-bio{margin:10px 0 14px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45}
+      .profile-card-content .discovery-actions{margin-top:auto}
+      .profile-card-content .discovery-safety-actions{margin-top:8px}
+      @media(max-width:700px){.profile-card-photo{aspect-ratio:16/10}}
+    `}</style>
     <div className="discovery-head"><div><p className="eyebrow">DISCOVER</p><h2>People looking for a meaningful connection</h2><p>Only profile information needed for discovery is shown. Phone numbers, email addresses and exact addresses stay private.</p></div><button className="secondary-button" onClick={() => void load()} disabled={loading}>Refresh</button></div>
     <div className="discovery-filters" aria-label="Discovery filters">
       <label>City<input value={city} onChange={e => setCity(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') applyFilters() }} placeholder="Any city" maxLength={100}/></label>
@@ -111,13 +125,23 @@ export default function DiscoveryPanel() {
       const status = interestStatus[profile.id]
       const actionBusy = actionUserId === profile.userId
       return <article className="discovery-card" key={profile.id}>
-        <div className="discovery-avatar" aria-hidden="true">{profile.displayName?.[0]?.toUpperCase() ?? '?'}</div>
-        <h3>{profile.displayName}, {age}</h3>
-        <p>{[profile.city, profile.profession].filter(Boolean).join(' • ') || 'Location and profession not provided'}</p>
-        <p className="discovery-meta">{[profile.education, profile.motherTongue, profile.maritalStatus].filter(Boolean).join(' • ')}</p>
-        {profile.bio && <p className="discovery-bio">{profile.bio}</p>}
-        <div className="discovery-actions"><button className="secondary-button" onClick={() => setSelected(profile)}>View profile</button><button className="primary-button" onClick={() => void interest(profile)} disabled={Boolean(status) || actionBusy}>{actionBusy ? 'Working…' : status ?? 'Interested'}</button></div>
-        <div className="discovery-safety-actions"><button className="text-button" disabled={actionBusy} onClick={() => void toggleBlock(profile)}>{blocked.has(profile.userId) ? 'Unblock' : 'Block'}</button><button className="text-button danger-link" disabled={actionBusy} onClick={() => setReportingUserId(profile.userId)}>Report</button></div>
+        <div className="profile-card-photo" aria-label="Profile photo">
+          <span aria-hidden="true">{profile.displayName?.[0]?.toUpperCase() ?? '?'}</span>
+          <span className="profile-card-photo-label">Photo not available</span>
+        </div>
+        <div className="profile-card-content">
+          <h3>{profile.displayName}, {age}</h3>
+          <p className="profile-card-location">{profile.city ? `📍 ${profile.city}` : 'Location not provided'}</p>
+          <div className="profile-card-facts">
+            {profile.profession && <span className="profile-card-fact">{profile.profession}</span>}
+            {profile.education && <span className="profile-card-fact">{profile.education}</span>}
+            {profile.maritalStatus && <span className="profile-card-fact">{profile.maritalStatus}</span>}
+            {profile.motherTongue && <span className="profile-card-fact">{profile.motherTongue}</span>}
+          </div>
+          {profile.bio && <p className="profile-card-bio">{profile.bio}</p>}
+          <div className="discovery-actions"><button className="secondary-button" onClick={() => setSelected(profile)}>View profile</button><button className="primary-button" onClick={() => void interest(profile)} disabled={Boolean(status) || actionBusy}>{actionBusy ? 'Working…' : status ?? 'Interested'}</button></div>
+          <div className="discovery-safety-actions"><button className="text-button" disabled={actionBusy} onClick={() => void toggleBlock(profile)}>{blocked.has(profile.userId) ? 'Unblock' : 'Block'}</button><button className="text-button danger-link" disabled={actionBusy} onClick={() => setReportingUserId(profile.userId)}>Report</button></div>
+        </div>
       </article>
     })}</div>}
     <div className="discovery-pagination" aria-label="Discovery pagination"><button className="secondary-button" disabled={page <= 1 || loading} onClick={() => setPage(p => p - 1)}>Previous</button><span aria-live="polite">Page {page} of {totalPages}</span><button className="secondary-button" disabled={page >= totalPages || loading} onClick={() => setPage(p => p + 1)}>Next</button></div>
