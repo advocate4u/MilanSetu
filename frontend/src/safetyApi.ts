@@ -49,3 +49,11 @@ export async function getMyReports(): Promise<MyReport[]> {
   if (!response.ok) throw new Error(data?.message ?? 'Unable to load your reports.')
   return data as MyReport[]
 }
+
+export async function getNotificationSummary(): Promise<{ unreadCount: number; latestCreatedAt: string | null; unreadByType: { type: string; count: number }[] }> {
+  requireApiBaseUrl()
+  const response = await fetch(`${apiBaseUrl}/api/notifications/summary`, { credentials: 'include', headers: authHeaders() })
+  const data = await response.json().catch(() => null)
+  if (!response.ok) throw new Error(data?.message ?? 'Unable to load notification summary.')
+  return data
+}
