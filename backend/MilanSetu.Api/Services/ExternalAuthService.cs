@@ -1,5 +1,5 @@
-using System.Net;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Google.Apis.Auth;
 using MilanSetu.Api.Data.Repositories;
 using MilanSetu.Api.Domain;
@@ -182,15 +182,25 @@ public sealed class ExternalAuthService(
 
     private sealed class FacebookDebugData
     {
+        [JsonPropertyName("is_valid")]
         public bool IsValid { get; set; }
+
+        [JsonPropertyName("app_id")]
         public string? AppId { get; set; }
+
+        [JsonPropertyName("user_id")]
         public string? UserId { get; set; }
     }
 
     private sealed class FacebookMeResponse
     {
+        [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("name")]
         public string? Name { get; set; }
+
+        [JsonPropertyName("email")]
         public string? Email { get; set; }
     }
 }
