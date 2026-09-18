@@ -3,6 +3,7 @@ import { getVerificationStatus, requestVerification, verifyVerificationCode, typ
 import './verification.css'
 
 const labels: Array<{ type: VerificationType; label: string; description: string; otp: boolean }> = [
+  { type: 'Mobile', label: 'Mobile number', description: 'Confirms that you control the mobile number on your account.', otp: true },
   { type: 'Email', label: 'Email address', description: 'Confirms that you control the email address on your account.', otp: true },
   { type: 'Identity', label: 'Identity', description: 'Secure review can establish an identity-verified badge without publishing documents.', otp: false },
   { type: 'Education', label: 'Education', description: 'A verified education record can help others assess profile information with more confidence.', otp: false },
@@ -52,7 +53,7 @@ export default function VerificationPanel() {
     setBusy(type); setError(''); setSuccess('')
     try {
       const result = await verifyVerificationCode(type, code)
-      setItems(current => current.map(item => item.type === 'Email' ? { ...item, status: 'Verified', verifiedAt: result.verifiedAt } : item))
+      setItems(current => current.map(item => item.type === type ? { ...item, status: 'Verified', verifiedAt: result.verifiedAt } : item))
       setCode(''); setOtpOpen(null); setSuccess(result.message)
     } catch (e) { setError(e instanceof Error ? e.message : `Unable to verify the ${type.toLowerCase()} code.`) }
     finally { setBusy(null) }
@@ -65,7 +66,7 @@ export default function VerificationPanel() {
       <div className="verification-card-top"><div><h3>{item.label}</h3><p>{item.description}</p></div><span className={`verification-status verification-${status.toLowerCase()}`}>{status === 'NotStarted' ? 'Not started' : status}</span></div>
       {verified ? <strong className="verification-badge">✓ Verified</strong> : (isEmail || item.type === 'Mobile') ? <>
         <button type="button" className="secondary-button" disabled={busy !== null || cooldown > 0} onClick={() => void requestOtp(item.type as OtpType)}>{busy === item.type ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : status === 'Pending' ? 'Send code again' : `Send ${item.label.toLowerCase()} code`}</button>
-        {otpOpen && <form className="verification-otp" onSubmit={e => { e.preventDefault(); void verifyOtp(item.type as OtpType) }}><label htmlFor="verification-email-code">6-digit email code</label><div className="verification-otp-row"><input id={`verification-${item.type.toLowerCase()}-code`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required /><button type="submit" className="primary-button" disabled={busy !== null || code.length !== 6}>{busy === item.type ? 'Verifying…' : `Verify ${item.label.toLowerCase()}`}</button></div><small>The code expires after 10 minutes. Never share it with anyone.</small></form>}
+        {otpOpen && <form className="verification-otp" onSubmit={e => { e.preventDefault(); void verifyOtp(item.type as OtpType) }}><label htmlFor={`verification-${item.type.toLowerCase()}-code`}>6-digit {item.label.toLowerCase()} code</label><div className="verification-otp-row"><input id={`verification-${item.type.toLowerCase()}-code`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required /><button type="submit" className="primary-button" disabled={busy !== null || code.length !== 6}>{busy === item.type ? 'Verifying…' : `Verify ${item.label.toLowerCase()}`}</button></div><small>The code expires after 10 minutes. Never share it with anyone.</small></form>}
       </> : <button type="button" className="secondary-button" disabled={busy !== null || status === 'Pending'} onClick={() => void requestVerification(item.type)}>{busy === item.type ? 'Requesting…' : status === 'Pending' ? 'Under review' : 'Request verification'}</button>}
     </article>})}</div>
     <p className="verification-note">A verification badge appears only after verification is successfully completed. OTP delivery is fail-closed in production until a real SMS/email provider is configured.</p>
