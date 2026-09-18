@@ -1,9 +1,8 @@
 # Build
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
-COPY MilanSetu.Api.csproj ./
-RUN dotnet restore MilanSetu.Api.csproj
 COPY . ./
+RUN dotnet restore MilanSetu.Api.csproj
 RUN dotnet publish MilanSetu.Api.csproj -c Release -o /app/publish --no-restore
 
 # Runtime
