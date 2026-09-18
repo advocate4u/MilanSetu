@@ -83,17 +83,28 @@ builder.Services.AddRateLimiter(options =>
             AutoReplenishment = true
         });
     });
-    options.AddFixedWindowLimiter("auth", limiter =>
+    options.AddPolicy("auth", context =>
     {
-        limiter.PermitLimit = 10;
-        limiter.Window = TimeSpan.FromMinutes(1);
-        limiter.QueueLimit = 0;
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter($"auth:{ip}", _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 10,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
     });
-    options.AddFixedWindowLimiter("verification", limiter =>
+    options.AddPolicy("verification", context =>
     {
-        limiter.PermitLimit = 5;
-        limiter.Window = TimeSpan.FromMinutes(10);
-        limiter.QueueLimit = 0;
+        var user = context.User.FindFirst("sub")?.Value ?? "anonymous";
+        var ip = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter($"verification:{user}:{ip}", _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
+            QueueLimit = 0,
+            AutoReplenishment = true
+        });
     });
 });
 
