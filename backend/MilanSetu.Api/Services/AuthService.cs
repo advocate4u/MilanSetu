@@ -69,6 +69,9 @@ public sealed class AuthService(IUnitOfWork unitOfWork, IConfiguration configura
         return tokens;
     }
 
+    public Task<(string AccessToken, string RefreshToken)> IssueTokensForExternalLoginAsync(User user, CancellationToken cancellationToken)
+        => IssueTokensAsync(user, cancellationToken);
+
     public async Task RevokeAsync(string refreshToken, CancellationToken cancellationToken)
     {
         var token = await RefreshTokens.SingleOrDefaultAsync(x => x.TokenHash == HashToken(refreshToken), cancellationToken);
