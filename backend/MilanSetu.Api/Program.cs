@@ -12,6 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
 const long MaxRequestBodyBytes = 10L * 1024 * 1024;
 
+builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBodyBytes);
+
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 builder.Services.AddSingleton<IRealtimeNotificationService, RealtimeNotificationService>();
@@ -138,6 +140,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 var app = builder.Build();
+
+if (app.Configuration.GetValue<bool>("Database:EnsureCreated"))
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetService<MilanSetuDbContext>();
+    if (db is null)
+        throw new InvalidOperationException("Database:EnsureCreated is enabled but the database is not configured.");
+
+    await db.Database.EnsureCreatedAsync();
+}
 
 app.UseForwardedHeaders();
 app.UseMiddleware<RequestMetricsMiddleware>();

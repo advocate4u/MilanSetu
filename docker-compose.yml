@@ -26,6 +26,7 @@ services:
       Auth__Jwt__Issuer: MilanSetu
       Auth__Jwt__Audience: MilanSetu.Web
       Verification__HashKey: ${VERIFICATION_HASH_KEY:-local-development-verification-key-change-this}
+      Database__EnsureCreated: "true"
       Cors__AllowedOrigins__0: http://localhost:5173
     ports:
       - "7001:8080"
