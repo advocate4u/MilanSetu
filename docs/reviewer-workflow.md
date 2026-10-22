@@ -32,6 +32,8 @@ The deployment operator should run this only through the secured database admini
 - `POST /api/reviewer/verifications/{id}/approve` with `{ "notes": "..." }`.
 - `POST /api/reviewer/verifications/{id}/reject` with `{ "notes": "reason" }`; a rejection reason is mandatory.
 
+Approval is fail-closed: the request must have at least one document marked `Available` after a malware scan. Uploaded documents remain quarantined while the scanner is unconfigured, so approval stays disabled until a real scanner is integrated and passes.
+
 Mobile and email OTP verification are intentionally excluded from reviewer decisions because they are completed by the OTP challenge flow.
 
 ## Audit
