@@ -146,7 +146,7 @@ public sealed class VerificationCodeSender(
         if (at <= 0) return "***";
         var local = value[..at];
         var visible = local.Length <= 2 ? local[..1] : local[..2];
-        return $"{visible}***{value[at..]}";
+        return "***@***";
     }
 
     private static string MaskPhone(string value)
