@@ -26,7 +26,7 @@ Feature branches are used for implementation. Changes are built/tested and merge
 
 ## Local backend database configuration
 
-The API uses PostgreSQL when a `ConnectionStrings:DefaultConnection` value is configured. Keep credentials outside source control.
+The API supports PostgreSQL or MySQL/MariaDB through `Database:Provider` and `ConnectionStrings:DefaultConnection`. Keep credentials outside source control.
 
 For local development, set the connection string through user secrets or an environment-specific configuration source, for example:
 
@@ -34,23 +34,40 @@ For local development, set the connection string through user secrets or an envi
 Host=localhost;Port=5432;Database=milansetu;Username=milansetu;Password=<local-password>
 ```
 
-### Verification OTP configuration
+## Verification OTP configuration
 
-Mobile/email verification codes are generated with a cryptographically secure random generator and stored only as HMAC hashes. Configure a private verification hash key outside source control:
+Mobile/email verification codes are generated using a cryptographically secure random generator and stored only as HMAC hashes. Configure a private verification hash key outside source control:
 
 ```text
 Verification__HashKey=<at-least-32-byte-random-secret>
 ```
 
-Development may use the application log to test delivery without a third-party provider. Production deliberately rejects delivery until a real SMS/email provider is configured. OTP values are never returned by the API and must never be logged in production. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge.
+Email delivery uses the configured SMTP provider:
+
+- `Email__Smtp__Host`
+- `Email__Smtp__Port` (default 587)
+- `Email__Smtp__Username`
+- `Email__Smtp__Password`
+- `Email__Smtp__FromAddress`
+- `Email__Smtp__FromName` (optional)
+- `Email__Smtp__EnableSsl=true` (default)
+
+Mobile OTP delivery supports Twilio Programmable Messaging. Configure these values as hosting secrets/environment variables:
+
+- `Sms__Twilio__AccountSid`
+- `Sms__Twilio__AuthToken`
+- `Sms__Twilio__FromNumber` (E.164 format, e.g. `+12025550123`)
+
+The user's mobile number must be stored in E.164 format (e.g. `+919876543210`). Twilio credentials must never be committed to the repository. Use a production account/sender approved for the destination countries and check current provider pricing, sender registration, and regulatory requirements before enabling delivery. If the SMS provider is missing in production, requests fail closed; development can log OTPs for local testing only.
+
+The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge. OTP values are never returned by the API or logged in production.
 
 The API exposes:
 
 - `GET /api/health` — application health
-- `GET /api/health/database` — PostgreSQL connectivity status
+- `GET /api/health/database` — database connectivity status
 
 The database health endpoint returns `not-configured` when no connection string is supplied and does not expose connection details.
-
 
 ## Safety, privacy and operations
 
@@ -60,7 +77,7 @@ Administrators have growth/safety analytics and in-process API runtime metrics. 
 
 Report intake uses automated risk signals for scam/impersonation/payment/credential indicators and repeated reports. High-risk cases enter the reviewer queue as `Reviewing`; automated scoring does not suspend or ban accounts.
 
-Notification badges use a server-side unread summary, refresh while the page is visible, and react to live SignalR events. Messaging also keeps polling as a resilience fallback. 
+Notification badges use a server-side unread summary, refresh while the page is visible, and react to live SignalR events. Messaging also keeps polling as a resilience fallback.
 
 ## Minimal advertising
 
