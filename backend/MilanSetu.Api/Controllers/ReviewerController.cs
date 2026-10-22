@@ -22,8 +22,10 @@ public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizat
         var actor = await authorization.GetAuthorizedActorAsync(User, ct); if (actor is null) return Forbid();
         page = Math.Clamp(page, 1, 10000); pageSize = Math.Clamp(pageSize, 1, 100);
         var query = db.VerificationRequests.AsNoTracking().Where(x => ReviewableTypes.Contains(x.Type));
-        if (type.HasValue) query = query.Where(x => x.Type == type.Value); else if (!status.HasValue) query = query.Where(x => x.Status == VerificationStatus.Pending);
-        if (status.HasValue) query = query.Where(x => x.Status == status.Value);
+        if (type.HasValue) query = query.Where(x => x.Type == type.Value);
+        query = status.HasValue
+            ? query.Where(x => x.Status == status.Value)
+            : query.Where(x => x.Status == VerificationStatus.Pending);
         var total = await query.CountAsync(ct);
         var items = await query.OrderBy(x => x.RequestedAt).ThenBy(x => x.Id).Skip((page - 1) * pageSize).Take(pageSize).Select(x => new { x.Id, x.UserId, type = x.Type.ToString(), status = x.Status.ToString(), x.RequestedAt, x.ReviewedAt, x.ReviewedByUserId, x.ClaimedByUserId, x.ClaimedAt }).ToListAsync(ct);
         await WriteAudit(actor.Value.UserId, "verification.queue.view", "VerificationRequest", null, null, ct); return Ok(new { page, pageSize, total, items });
