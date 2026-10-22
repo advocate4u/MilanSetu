@@ -4,7 +4,7 @@ MilanSetu keeps reviewer authorization server-side. Normal registration never ac
 
 ## Roles
 
-`User` is the default application role. `Reviewer` can review Identity, Education and Employment requests. `Admin` has the same reviewer capabilities in this milestone; admin-specific user/role management remains a later hardening task.
+`User` is the default application role. `Reviewer` can review Identity, Education and Employment requests. `Admin` and `SuperAdmin` have the same reviewer capabilities in this milestone; admin-specific user/role management remains a later hardening task.
 
 Roles are stored in `user_role_assignments` and checked against the database on every reviewer request rather than trusting a client-provided value or a stale JWT claim.
 
