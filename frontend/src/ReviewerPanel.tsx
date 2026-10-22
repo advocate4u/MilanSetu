@@ -30,7 +30,7 @@ export default function ReviewerPanel() {
     setLoading(true)
     try {
       const me = await api('/api/auth/me')
-      if (me.role !== 'Reviewer' && me.role !== 'Admin') { setAllowed(false); return }
+      if (me.role !== 'Reviewer' && me.role !== 'Admin' && me.role !== 'SuperAdmin') { setAllowed(false); return }
       setAllowed(true)
       const query = filter ? `?status=${encodeURIComponent(filter)}&page=1&pageSize=50` : '?page=1&pageSize=50'
       const result = await api(`/api/reviewer/verifications${query}`)
