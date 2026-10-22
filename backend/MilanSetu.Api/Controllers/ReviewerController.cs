@@ -35,7 +35,7 @@ public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizat
     public async Task<IActionResult> Get(Guid id, CancellationToken ct)
     {
         var actor = await authorization.GetAuthorizedActorAsync(User, ct); if (actor is null) return Forbid();
-        var item = await db.VerificationRequests.AsNoTracking().Where(x => x.Id == id && ReviewableTypes.Contains(x.Type)).Select(x => new { x.Id, x.UserId, type = x.Type.ToString(), status = x.Status.ToString(), x.RequestedAt, x.ReviewedAt, x.VerifiedAt, x.ReviewedByUserId, x.ClaimedByUserId, x.ClaimedAt, x.ReviewerNotes }).SingleOrDefaultAsync(ct);
+        var item = await db.VerificationRequests.AsNoTracking().Where(x => x.Id == id && ReviewableTypes.Contains(x.Type)).Select(x => new { x.Id, x.UserId, type = x.Type.ToString(), status = x.Status.ToString(), x.RequestedAt, x.ReviewedAt, x.VerifiedAt, x.ReviewedByUserId, x.ClaimedByUserId, x.ClaimedAt, x.ReviewerNotes, canApprove = db.VerificationDocuments.Any(d => d.VerificationRequestId == x.Id && d.Status == VerificationDocumentStatus.Available) }).SingleOrDefaultAsync(ct);
         if (item is null) return NotFound();
         await WriteAudit(actor.Value.UserId, "verification.detail.view", "VerificationRequest", id, null, ct); return Ok(item);
     }
@@ -62,6 +62,13 @@ public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizat
         var actor = await authorization.GetAuthorizedActorAsync(User, ct); if (actor is null) return Forbid();
         var item = await db.VerificationRequests.SingleOrDefaultAsync(x => x.Id == id && ReviewableTypes.Contains(x.Type), ct); if (item is null) return NotFound();
         if (item.Status != VerificationStatus.Pending) return Conflict(new { message = "This verification has already been decided." });
+        if (decision == VerificationStatus.Verified)
+        {
+            var hasScannedDocument = await db.VerificationDocuments.AsNoTracking()
+                .AnyAsync(x => x.VerificationRequestId == id && x.Status == VerificationDocumentStatus.Available, ct);
+            if (!hasScannedDocument)
+                return Conflict(new { message = "This request cannot be approved until a verification document has passed malware scanning and is available for review." });
+        }
         if (item.ClaimedByUserId.HasValue && item.ClaimedByUserId != actor.Value.UserId && item.ClaimedAt > DateTimeOffset.UtcNow.AddMinutes(-30)) return Conflict(new { message = "This verification is currently assigned to another reviewer." });
         var notes = input.Notes?.Trim(); if (decision == VerificationStatus.Rejected && string.IsNullOrWhiteSpace(notes)) return BadRequest(new { message = "A rejection reason is required." });
         if (notes?.Length > 2000) return BadRequest(new { message = "Reviewer notes cannot exceed 2000 characters." });
