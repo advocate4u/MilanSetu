@@ -30,17 +30,25 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
+        uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v4
+      - name: Build API for CodeQL
+        if: matrix.language == 'csharp'
+        run: dotnet build backend/MilanSetu.Api/MilanSetu.Api.csproj --configuration Release
+
+      - name: Build JavaScript/TypeScript for CodeQL
+        if: matrix.language == 'javascript-typescript'
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
 
       - name: Analyze
-        uses: github/codeql-action/analyze@v4
+        uses: github/codeql-action/analyze@v3
         with:
           category: /language:${{ matrix.language }}
