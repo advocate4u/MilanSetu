@@ -2,6 +2,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using MilanSetu.Api.Data;
 using MilanSetu.Api.Data.Repositories;
+using MilanSetu.Api.Domain;
 using MilanSetu.Api.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -12,7 +13,7 @@ using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 var isProduction = builder.Environment.IsProduction();
-const long MaxRequestBodyBytes = 10L * 1024 * 1024;
+const long MaxRequestBodyBytes = 11L * 1024 * 1024;
 
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = MaxRequestBodyBytes);
 
@@ -30,7 +31,7 @@ builder.Services.AddSingleton<MessageModerationService>();
 builder.Services.AddSingleton<VerificationChallengeService>();
 builder.Services.AddSingleton<IVerificationCodeSender, VerificationCodeSender>();
 builder.Services.AddSingleton<IVerificationDocumentStorage, FileSystemVerificationDocumentStorage>();
-builder.Services.AddSingleton<IVerificationDocumentScanner, QuarantineOnlyVerificationDocumentScanner>();
+builder.Services.AddSingleton<IVerificationDocumentScanner, ClamAvVerificationDocumentScanner>();
 builder.Services.AddSingleton<ModerationAutomationService>();
 builder.Services.AddSingleton<RequestMetricsService>();
 builder.Services.AddScoped<IUnitOfWork, EfUnitOfWork>();
