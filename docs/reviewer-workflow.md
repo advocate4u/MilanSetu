@@ -4,7 +4,7 @@ MilanSetu keeps reviewer authorization server-side. Normal registration never ac
 
 ## Roles
 
-`User` is the default application role. `Reviewer` can review Identity, Education and Employment requests. `Admin` has the same reviewer capabilities in this milestone; admin-specific user/role management remains a later hardening task.
+`User` is the default application role. `Reviewer` can review Identity, Education and Employment requests. `Admin` and `SuperAdmin` have the same reviewer capabilities in this milestone; admin-specific user/role management remains a later hardening task.
 
 Roles are stored in `user_role_assignments` and checked against the database on every reviewer request rather than trusting a client-provided value or a stale JWT claim.
 
@@ -31,6 +31,8 @@ The deployment operator should run this only through the secured database admini
 - `POST /api/reviewer/verifications/{id}/claim` — claims a pending item for 30 minutes.
 - `POST /api/reviewer/verifications/{id}/approve` with `{ "notes": "..." }`.
 - `POST /api/reviewer/verifications/{id}/reject` with `{ "notes": "reason" }`; a rejection reason is mandatory.
+
+The queue defaults to pending requests even when a verification type filter is supplied. Approval is fail-closed: at least one associated document must be marked `Available` after malware scanning. The reviewer UI disables approval until a clean scanned document is available; the API independently enforces the same rule.
 
 Mobile and email OTP verification are intentionally excluded from reviewer decisions because they are completed by the OTP challenge flow.
 
