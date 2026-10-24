@@ -92,6 +92,7 @@ Install ClamAV on the API host/container and configure the absolute path to its 
 ```text
 VerificationDocuments__RootPath=/var/lib/milansetu/private-verification-documents
 VerificationDocuments__ClamAv__ExecutablePath=/usr/bin/clamscan
+VerificationDocuments__ClamAv__TimeoutSeconds=30
 ```
 
-The API process needs permission to execute the scanner and read the quarantine directory. Keep this storage outside the web root and restrict OS access to the API service account. The reviewer endpoints `GET /api/reviewer/verifications/{id}/documents` and `GET /api/reviewer/verifications/{id}/documents/{documentId}` require a database-assigned Reviewer/Admin role and return only documents whose scan status is `Available`. Downloads are attachments and use `Cache-Control: no-store`. For containers, install ClamAV in the image or mount a trusted scanner binary; simply setting the path does not install the scanner.
+The API process needs permission to execute the scanner and read the quarantine directory. Keep this storage outside the web root and restrict OS access to the API service account. The reviewer endpoints `GET /api/reviewer/verifications/{id}/documents` and `GET /api/reviewer/verifications/{id}/documents/{documentId}` require a database-assigned Reviewer/Admin role and return only documents whose scan status is `Available`. Downloads are attachments and use `Cache-Control: no-store`. For containers, install ClamAV in the image or mount a trusted scanner binary; simply setting the path does not install the scanner. Scan time is limited to 30 seconds by default (configurable from 1 to 120 seconds).
