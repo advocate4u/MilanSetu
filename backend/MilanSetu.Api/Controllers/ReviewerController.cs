@@ -12,7 +12,7 @@ namespace MilanSetu.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/reviewer/verifications")]
-public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizationService authorization) : ControllerBase
+public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizationService authorization, IVerificationDocumentStorage documentStorage) : ControllerBase
 {
     private static readonly VerificationType[] ReviewableTypes = [VerificationType.Identity, VerificationType.Education, VerificationType.Employment];
 
@@ -36,6 +36,47 @@ public sealed class ReviewerController(MilanSetuDbContext db, ReviewerAuthorizat
         var item = await db.VerificationRequests.AsNoTracking().Where(x => x.Id == id && ReviewableTypes.Contains(x.Type)).Select(x => new { x.Id, x.UserId, type = x.Type.ToString(), status = x.Status.ToString(), x.RequestedAt, x.ReviewedAt, x.VerifiedAt, x.ReviewedByUserId, x.ClaimedByUserId, x.ClaimedAt, x.ReviewerNotes }).SingleOrDefaultAsync(ct);
         if (item is null) return NotFound();
         await WriteAudit(actor.Value.UserId, "verification.detail.view", "VerificationRequest", id, null, ct); return Ok(item);
+    }
+
+    [HttpGet("{id:guid}/documents")]
+    public async Task<IActionResult> Documents(Guid id, CancellationToken ct)
+    {
+        var actor = await authorization.GetAuthorizedActorAsync(User, ct);
+        if (actor is null) return Forbid();
+
+        var requestExists = await db.VerificationRequests.AsNoTracking()
+            .AnyAsync(x => x.Id == id && ReviewableTypes.Contains(x.Type), ct);
+        if (!requestExists) return NotFound();
+
+        var documents = await db.Set<VerificationDocument>().AsNoTracking()
+            .Where(x => x.VerificationRequestId == id && x.Status == VerificationDocumentStatus.Available)
+            .OrderByDescending(x => x.UploadedAt)
+            .Select(x => new { x.Id, x.OriginalFileName, x.ContentType, x.SizeBytes, x.Sha256, x.UploadedAt, x.ScannedAt, x.ScannerVerdict })
+            .ToListAsync(ct);
+
+        await WriteAudit(actor.Value.UserId, "verification.documents.view", "VerificationRequest", id, null, ct);
+        return Ok(documents);
+    }
+
+    [HttpGet("{id:guid}/documents/{documentId:guid}")]
+    public async Task<IActionResult> DownloadDocument(Guid id, Guid documentId, CancellationToken ct)
+    {
+        var actor = await authorization.GetAuthorizedActorAsync(User, ct);
+        if (actor is null) return Forbid();
+
+        var document = await db.Set<VerificationDocument>().AsNoTracking()
+            .Where(x => x.Id == documentId && x.VerificationRequestId == id &&
+                        x.Status == VerificationDocumentStatus.Available &&
+                        ReviewableTypes.Contains(x.VerificationRequest.Type))
+            .Select(x => new { x.Id, x.StorageKey, x.OriginalFileName, x.ContentType, x.SizeBytes })
+            .SingleOrDefaultAsync(ct);
+        if (document is null) return NotFound();
+
+        await WriteAudit(actor.Value.UserId, "verification.document.download", "VerificationDocument", document.Id, null, ct);
+        var stream = await documentStorage.OpenReadAsync(document.StorageKey, ct);
+        Response.Headers["X-Content-Type-Options"] = "nosniff";
+        Response.Headers["Cache-Control"] = "no-store";
+        return File(stream, document.ContentType, document.OriginalFileName, enableRangeProcessing: false);
     }
 
     [HttpPost("{id:guid}/claim")]

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Security.Cryptography;
 
 namespace MilanSetu.Api.Services;
@@ -5,12 +6,13 @@ namespace MilanSetu.Api.Services;
 public interface IVerificationDocumentStorage
 {
     Task<string> SaveQuarantineAsync(Stream content, string storageKey, CancellationToken ct);
+    Task<Stream> OpenReadAsync(string storageKey, CancellationToken ct);
     Task DeleteAsync(string storageKey, CancellationToken ct);
 }
 
 public sealed class FileSystemVerificationDocumentStorage(IConfiguration configuration) : IVerificationDocumentStorage
 {
-    private string Root => configuration["VerificationDocuments:RootPath"] ?? Path.Combine(AppContext.BaseDirectory, "private-verification-documents");
+    private string Root => Path.GetFullPath(configuration["VerificationDocuments:RootPath"] ?? Path.Combine(AppContext.BaseDirectory, "private-verification-documents"));
 
     public async Task<string> SaveQuarantineAsync(Stream content, string storageKey, CancellationToken ct)
     {
@@ -21,8 +23,16 @@ public sealed class FileSystemVerificationDocumentStorage(IConfiguration configu
         return path;
     }
 
+    public Task<Stream> OpenReadAsync(string storageKey, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        Stream stream = new FileStream(GetPath(storageKey), FileMode.Open, FileAccess.Read, FileShare.Read, 64 * 1024, useAsync: true);
+        return Task.FromResult(stream);
+    }
+
     public Task DeleteAsync(string storageKey, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var path = GetPath(storageKey);
         if (File.Exists(path)) File.Delete(path);
         return Task.CompletedTask;
@@ -30,8 +40,16 @@ public sealed class FileSystemVerificationDocumentStorage(IConfiguration configu
 
     private string GetPath(string storageKey)
     {
-        if (string.IsNullOrWhiteSpace(storageKey) || storageKey.Contains("..", StringComparison.Ordinal) || Path.IsPathRooted(storageKey)) throw new InvalidOperationException("Invalid storage key.");
-        return Path.Combine(Root, storageKey.Replace('/', Path.DirectorySeparatorChar));
+        if (string.IsNullOrWhiteSpace(storageKey) || Path.IsPathRooted(storageKey) ||
+            storageKey.Contains((char)92) || storageKey.Split('/').Any(part => part is "" or "." or ".."))
+            throw new InvalidOperationException("Invalid storage key.");
+
+        var root = Root;
+        var path = Path.GetFullPath(Path.Combine(root, storageKey.Replace('/', Path.DirectorySeparatorChar)));
+        var rootPrefix = root.EndsWith(Path.DirectorySeparatorChar) ? root : root + Path.DirectorySeparatorChar;
+        if (!path.StartsWith(rootPrefix, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new InvalidOperationException("Invalid storage key.");
+        return path;
     }
 }
 
@@ -40,10 +58,67 @@ public interface IVerificationDocumentScanner
     Task<(bool Safe, string Verdict)> ScanAsync(string physicalPath, CancellationToken ct);
 }
 
-public sealed class QuarantineOnlyVerificationDocumentScanner : IVerificationDocumentScanner
+/// <summary>
+/// Fail-closed ClamAV adapter. Set VerificationDocuments:ClamAv:ExecutablePath to the
+/// installed clamscan executable. Missing scanner or scanner errors never mark a file safe.
+/// </summary>
+public sealed class ClamAvVerificationDocumentScanner(IConfiguration configuration) : IVerificationDocumentScanner
 {
-    public Task<(bool Safe, string Verdict)> ScanAsync(string physicalPath, CancellationToken ct)
-        => Task.FromResult((false, "ScannerNotConfigured"));
+    public async Task<(bool Safe, string Verdict)> ScanAsync(string physicalPath, CancellationToken ct)
+    {
+        var executable = configuration["VerificationDocuments:ClamAv:ExecutablePath"];
+        if (string.IsNullOrWhiteSpace(executable) || !File.Exists(executable))
+            return (false, "ScannerNotConfigured");
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = executable,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            },
+            EnableRaisingEvents = true
+        };
+        process.StartInfo.ArgumentList.Add("--no-summary");
+        process.StartInfo.ArgumentList.Add(physicalPath);
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var timeoutSeconds = Math.Clamp(configuration.GetValue<int?>("VerificationDocuments:ClamAv:TimeoutSeconds") ?? 30, 1, 120);
+        timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        try
+        {
+            if (!process.Start()) return (false, "ScannerStartFailed");
+            var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
+            await Task.WhenAll(stdout, stderr);
+
+            return process.ExitCode switch
+            {
+                0 => (true, "Clean"),
+                1 => (false, "MalwareDetected"),
+                _ => (false, "ScannerError")
+            };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            return (false, "ScannerTimeout");
+        }
+        catch (OperationCanceledException)
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            throw;
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return (false, "ScannerError");
+        }
+    }
 }
 
 public static class VerificationDocumentSecurity
@@ -62,8 +137,32 @@ public static class VerificationDocumentSecurity
     public static void Validate(string fileName, string contentType, long length)
     {
         var extension = Path.GetExtension(fileName);
-        if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(contentType) || length <= 0 || length > MaxBytes)
+        var extensionTypeMatches = extension.ToLowerInvariant() switch
+        {
+            ".jpg" or ".jpeg" => string.Equals(contentType, "image/jpeg", StringComparison.OrdinalIgnoreCase),
+            ".png" => string.Equals(contentType, "image/png", StringComparison.OrdinalIgnoreCase),
+            ".pdf" => string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+        if (!AllowedExtensions.Contains(extension) || !AllowedContentTypes.Contains(contentType) ||
+            !extensionTypeMatches || length <= 0 || length > MaxBytes)
             throw new InvalidOperationException("Only non-empty JPG, PNG or PDF files up to 10 MB are accepted.");
+    }
+
+    public static async Task<bool> HasValidSignatureAsync(Stream stream, string contentType, CancellationToken ct)
+    {
+        if (!stream.CanSeek) return false;
+        stream.Position = 0;
+        var header = new byte[8];
+        var read = await stream.ReadAsync(header.AsMemory(0, header.Length), ct);
+        stream.Position = 0;
+        return contentType.ToLowerInvariant() switch
+        {
+            "image/jpeg" => read >= 3 && header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "image/png" => read >= 8 && header.SequenceEqual(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A }),
+            "application/pdf" => read >= 5 && header[0] == 0x25 && header[1] == 0x50 && header[2] == 0x44 && header[3] == 0x46 && header[4] == 0x2D,
+            _ => false
+        };
     }
 
     public static async Task<string> ComputeSha256Async(Stream stream, CancellationToken ct)

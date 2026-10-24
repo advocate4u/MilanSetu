@@ -81,3 +81,18 @@ Ads are deliberately limited to the authenticated workspace and do not use Milan
 Advertising is configured from the Super Admin workspace rather than frontend environment variables. The single minimal panel is disabled until a Super Admin enables it. Sponsor or Google AdSense settings are stored server-side, and the public ad endpoint returns only the fields needed to render the approved advertisement.
 
 For initial deployment, an existing account can be promoted once by setting the backend environment variable `SuperAdmin__Email` to that account's exact email. On startup, MilanSetu assigns that existing account the `SuperAdmin` role; it does not create accounts. Remove the bootstrap setting after provisioning if it is no longer needed.
+
+
+### Private verification documents and malware scanning
+
+Identity, education and employment evidence is stored outside public web roots in the private quarantine directory. Uploads are limited to JPG, PNG and PDF files up to 10 MB; the API checks the file signature as well as the declared extension/content type. Files are not made available to reviewers unless ClamAV reports them clean. A missing scanner or scanner error fails closed and leaves the document quarantined.
+
+Install ClamAV on the API host/container and configure the absolute path to its `clamscan` executable through an environment variable (do not commit host paths or secrets):
+
+```text
+VerificationDocuments__RootPath=/var/lib/milansetu/private-verification-documents
+VerificationDocuments__ClamAv__ExecutablePath=/usr/bin/clamscan
+VerificationDocuments__ClamAv__TimeoutSeconds=30
+```
+
+The API process needs permission to execute the scanner and read the quarantine directory. Keep this storage outside the web root and restrict OS access to the API service account. The reviewer endpoints `GET /api/reviewer/verifications/{id}/documents` and `GET /api/reviewer/verifications/{id}/documents/{documentId}` require a database-assigned Reviewer/Admin role and return only documents whose scan status is `Available`. Downloads are attachments and use `Cache-Control: no-store`. For containers, install ClamAV in the image or mount a trusted scanner binary; simply setting the path does not install the scanner. Scan time is limited to 30 seconds by default (configurable from 1 to 120 seconds).

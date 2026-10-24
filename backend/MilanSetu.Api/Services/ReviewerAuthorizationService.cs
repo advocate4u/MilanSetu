@@ -17,6 +17,6 @@ public sealed class ReviewerAuthorizationService(MilanSetuDbContext db)
     {
         if (!Guid.TryParse(principal.FindFirstValue(ClaimTypes.NameIdentifier) ?? principal.FindFirstValue("sub"), out var userId)) return null;
         var role = await db.UserRoleAssignments.AsNoTracking().Where(x => x.UserId == userId).Select(x => (UserRole?)x.Role).SingleOrDefaultAsync(ct);
-        return role is UserRole.Reviewer or UserRole.Admin ? (userId, role.Value) : null;
+        return role is UserRole.Reviewer or UserRole.Admin or UserRole.SuperAdmin ? (userId, role.Value) : null;
     }
 }
