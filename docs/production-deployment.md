@@ -68,3 +68,42 @@ The frontend sends credentials for authentication requests. The API therefore mu
 9. Test account registration from the Pages site.
 
 The repository contains the backend Dockerfile, so a Docker-capable ASP.NET hosting provider can build the API directly from `backend/MilanSetu.Api/Dockerfile`.
+
+
+## OTP delivery providers
+
+Production mobile OTP delivery requires these hosting secrets/environment variables. The sender must be approved for the destination country and use E.164 format.
+
+```text
+Sms__Twilio__AccountSid=<Twilio Account SID>
+Sms__Twilio__AuthToken=<Twilio Auth Token>
+Sms__Twilio__FromNumber=+12025550123
+```
+
+Production email OTP delivery requires SMTP configuration:
+
+```text
+Email__Smtp__Host=<SMTP host>
+Email__Smtp__Port=587
+Email__Smtp__Username=<SMTP username>
+Email__Smtp__Password=<SMTP password>
+Email__Smtp__FromAddress=<verified sender address>
+Email__Smtp__FromName=MilanSetu
+Email__Smtp__EnableSsl=true
+```
+
+Keep all provider credentials in the hosting secret manager. Do not place secrets in the frontend or commit them to the repository. Missing provider settings or delivery errors fail closed in production.
+
+## Private verification documents and ClamAV
+
+The API container installs `clamscan` and starts `freshclam` in the background to update malware signatures. Document uploads remain quarantined until a clean scan succeeds; if the scanner or signature database is unavailable, approval remains disabled.
+
+The container defaults to:
+
+```text
+VerificationDocuments__RootPath=/var/lib/milansetu/private-verification-documents
+VerificationDocuments__ClamAv__ExecutablePath=/usr/bin/clamscan
+VerificationDocuments__ClamAv__TimeoutSeconds=30
+```
+
+**Persist both directories** when deploying the API: `/var/lib/milansetu/private-verification-documents` contains sensitive evidence and `/var/lib/clamav` contains scanner signatures. The repository's Compose files mount named volumes for both. For other hosting platforms, mount persistent writable volumes at those paths, restrict access to the API service account, and back up document data using an encrypted, access-controlled process. Never expose the document directory through the public web root.
