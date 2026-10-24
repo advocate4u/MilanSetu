@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using MilanSetu.Api.Domain;
 
 namespace MilanSetu.Api.Services;
@@ -14,14 +15,17 @@ public interface IVerificationCodeSender
 public sealed class VerificationCodeSender(
     IHostEnvironment environment,
     IConfiguration configuration,
-    ILogger<VerificationCodeSender> logger) : IVerificationCodeSender
+    ILogger<VerificationCodeSender> logger,
+    IHttpClientFactory httpClientFactory) : IVerificationCodeSender
 {
+    private static readonly Regex E164Pattern = new(@"^\+[1-9][0-9]{7,14}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+
     public async Task SendAsync(VerificationType type, string destination, string code, CancellationToken cancellationToken)
     {
         if (type == VerificationType.Mobile)
         {
-            // Mobile OTP delivery is intentionally left disabled until the mobile provider is selected.
-            throw new InvalidOperationException("Mobile verification delivery is not configured yet.");
+            await SendMobileAsync(destination, code, cancellationToken);
+            return;
         }
 
         if (type != VerificationType.Email)
@@ -37,9 +41,7 @@ public sealed class VerificationCodeSender(
         {
             if (environment.IsDevelopment())
             {
-                logger.LogInformation(
-                    "Development email verification code generated for masked destination {Destination}: {Code}",
-                    Mask(destination), code);
+                logger.LogWarning("Email verification delivery is not configured in Development; OTP was not logged.");
                 return;
             }
 
@@ -73,18 +75,67 @@ public sealed class VerificationCodeSender(
         };
 
         await client.SendMailAsync(message, cancellationToken);
-        logger.LogInformation("Email verification code sent to masked destination {Destination}.", Mask(destination));
+        logger.LogInformation("Email verification code sent.");
     }
 
-    private static string Mask(string value)
+    private async Task SendMobileAsync(string destination, string code, CancellationToken ct)
     {
-        var at = value.IndexOf('@');
-        if (at <= 0) return "***";
-        var local = value[..at];
-        var domain = value[at..];
-        var visible = local.Length <= 2 ? local[..1] : local[..2];
-        return $"{visible}***{domain}";
+        var accountSid = configuration["Sms:Twilio:AccountSid"];
+        var authToken = configuration["Sms:Twilio:AuthToken"];
+        var fromNumber = configuration["Sms:Twilio:FromNumber"];
+
+        if (string.IsNullOrWhiteSpace(accountSid) || string.IsNullOrWhiteSpace(authToken) ||
+            string.IsNullOrWhiteSpace(fromNumber))
+        {
+            if (environment.IsDevelopment())
+            {
+                logger.LogWarning("SMS delivery is not configured in Development; OTP was not logged.");
+                return;
+            }
+
+            throw new InvalidOperationException("SMS delivery is not configured for this environment.");
+        }
+
+        if (!E164Pattern.IsMatch(destination))
+            throw new InvalidOperationException("The mobile number must use international E.164 format, for example +919876543210.");
+        if (!E164Pattern.IsMatch(fromNumber))
+            throw new InvalidOperationException("Sms:Twilio:FromNumber must use international E.164 format.");
+        if (!accountSid.StartsWith("AC", StringComparison.Ordinal) ||
+            accountSid.Length != 34 ||
+            accountSid.Any(c => !Uri.IsHexDigit(c)))
+            throw new InvalidOperationException("Sms:Twilio:AccountSid is invalid.");
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"https://api.twilio.com/2010-04-01/Accounts/{accountSid}/Messages.json");
+        var credentials = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{accountSid}:{authToken}"));
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", credentials);
+        request.Content = new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["To"] = destination,
+            ["From"] = fromNumber,
+            ["Body"] = $"Your MilanSetu verification code is {code}. It expires in 10 minutes. Do not share this code."
+        });
+
+        try
+        {
+            using var response = await httpClientFactory.CreateClient("twilio-sms").SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                logger.LogWarning("SMS provider rejected verification delivery with status {StatusCode}.",
+                    (int)response.StatusCode);
+                throw new InvalidOperationException("SMS verification delivery failed. Please try again later.");
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            logger.LogWarning("SMS provider request failed with exception type {ExceptionType}.", ex.GetType().Name);
+            throw new InvalidOperationException("SMS verification delivery failed. Please try again later.");
+        }
+
+        logger.LogInformation("Mobile verification code sent.");
     }
+
 }
 
 public sealed class VerificationChallengeService(IConfiguration configuration)
