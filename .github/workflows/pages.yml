@@ -5,6 +5,10 @@ on:
     branches:
       - main
       - deployment-hardening
+  pull_request:
+    paths:
+      - "frontend/**"
+      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:
@@ -13,58 +17,58 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  # Configure this as a GitHub Actions repository variable before deploying the production UI.
-  # Example value: https://api.example.com
   VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Validate production API configuration
+      - name: Validate API configuration
+        id: api-config
+        shell: bash
         run: |
           if [ -z "$VITE_API_BASE_URL" ]; then
-            echo "VITE_API_BASE_URL is not configured. Add it as a GitHub Actions repository variable before deploying MilanSetu Pages."
-            exit 1
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::VITE_API_BASE_URL is not configured. The frontend will be built and validated, but Pages deployment will be skipped."
+            exit 0
           fi
           case "$VITE_API_BASE_URL" in
             https://*) ;;
-            *) echo "VITE_API_BASE_URL must use HTTPS in production."; exit 1 ;;
+            *) echo "::error::VITE_API_BASE_URL must use HTTPS in production."; exit 1 ;;
           esac
+          echo "configured=true" >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package.json
+          node-version: 22
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm install
+        run: npm install --no-audit --no-fund
 
       - name: Build frontend
         working-directory: frontend
         run: npm run build
 
       - name: Setup Pages
+        if: steps.api-config.outputs.configured == 'true' && github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
       - name: Upload Pages artifact
+        if: steps.api-config.outputs.configured == 'true' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
         with:
           path: frontend/dist
 
       - name: Deploy to GitHub Pages
+        if: steps.api-config.outputs.configured == 'true' && github.event_name != 'pull_request'
         id: deployment
         uses: actions/deploy-pages@v4
