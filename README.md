@@ -42,7 +42,20 @@ Mobile/email verification codes are generated with a cryptographically secure ra
 Verification__HashKey=<at-least-32-byte-random-secret>
 ```
 
-Development may use the application log to test delivery without a third-party provider. Production deliberately rejects delivery until a real SMS/email provider is configured. OTP values are never returned by the API and must never be logged in production. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge.
+Production deliberately rejects delivery until a real SMS/email provider is configured. OTP values are never returned by the API or written to logs in any environment. If delivery is not configured in Development, only a masked destination and configuration warning are logged; configure a local SMTP test server or Twilio test credentials to exercise the full flow. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge. 
+
+
+### Twilio SMS delivery
+
+Mobile OTP delivery uses Twilio Programmable Messaging over HTTPS. Configure these values as hosting secrets/environment variables; never commit credentials:
+
+```text
+Sms__Twilio__AccountSid=<Twilio Account SID>
+Sms__Twilio__AuthToken=<Twilio Auth Token>
+Sms__Twilio__FromNumber=+12025550123
+```
+
+The configured sender and the user's mobile number must use E.164 format (for example, `+919876543210`). Use an approved sender and production account for the destination country, and confirm current provider pricing, sender registration and regulatory requirements before enabling delivery. Missing configuration or provider failures fail closed in production; OTPs and authentication credentials are not logged.
 
 The API exposes:
 
