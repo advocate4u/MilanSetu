@@ -41,7 +41,7 @@ public sealed class FileSystemVerificationDocumentStorage(IConfiguration configu
     private string GetPath(string storageKey)
     {
         if (string.IsNullOrWhiteSpace(storageKey) || Path.IsPathRooted(storageKey) ||
-            storageKey.Split('/', '\\\\').Any(part => part is "" or "." or ".."))
+            storageKey.Contains((char)92) || storageKey.Split('/').Any(part => part is "" or "." or ".."))
             throw new InvalidOperationException("Invalid storage key.");
 
         var root = Root;
