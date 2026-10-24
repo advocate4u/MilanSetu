@@ -123,7 +123,7 @@ public sealed class VerificationCodeSender(
 
         try
         {
-            using var response = await httpClientFactory.CreateClient().SendAsync(request, ct);
+            using var response = await httpClientFactory.CreateClient("twilio-sms").SendAsync(request, ct);
             if (!response.IsSuccessStatusCode)
             {
                 logger.LogWarning("SMS provider rejected verification delivery with status {StatusCode}.",
@@ -133,21 +133,14 @@ public sealed class VerificationCodeSender(
         }
         catch (HttpRequestException ex)
         {
-            logger.LogWarning(ex, "SMS provider request failed.");
+            logger.LogWarning("SMS provider request failed with exception type {ExceptionType}.", ex.GetType().Name);
             throw new InvalidOperationException("SMS verification delivery failed. Please try again later.");
         }
 
         logger.LogInformation("Mobile verification code sent to masked destination {Destination}.", MaskPhone(destination));
     }
 
-    private static string MaskEmail(string value)
-    {
-        var at = value.IndexOf('@');
-        if (at <= 0) return "***";
-        var local = value[..at];
-        var visible = local.Length <= 2 ? local[..1] : local[..2];
-        return "***@***";
-    }
+    private static string MaskEmail(string value) => value.Contains('@') ? "***@***" : "***";
 
     private static string MaskPhone(string value)
     {
