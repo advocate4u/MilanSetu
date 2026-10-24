@@ -37,3 +37,7 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Verify image metadata
         run: docker image inspect milansetu-api:ci --format '{{.Config.Entrypoint}}'
+      - name: Verify ClamAV tools are installed
+        run: |
+          docker run --rm --entrypoint /usr/bin/clamscan milansetu-api:ci --version
+          docker run --rm --entrypoint /usr/bin/freshclam milansetu-api:ci --version

@@ -100,7 +100,7 @@ For initial deployment, an existing account can be promoted once by setting the 
 
 Identity, education and employment evidence is stored outside public web roots in the private quarantine directory. Uploads are limited to JPG, PNG and PDF files up to 10 MB; the API checks the file signature as well as the declared extension/content type. Files are not made available to reviewers unless ClamAV reports them clean. A missing scanner or scanner error fails closed and leaves the document quarantined.
 
-Install ClamAV on the API host/container and configure the absolute path to its `clamscan` executable through an environment variable (do not commit host paths or secrets):
+The repository's API Docker image includes `clamscan` and `freshclam`; the entrypoint starts signature updates in the background. For a non-container host, install ClamAV separately. Configure the absolute path to its `clamscan` executable through an environment variable (do not commit host paths or secrets):
 
 ```text
 VerificationDocuments__RootPath=/var/lib/milansetu/private-verification-documents
@@ -108,4 +108,4 @@ VerificationDocuments__ClamAv__ExecutablePath=/usr/bin/clamscan
 VerificationDocuments__ClamAv__TimeoutSeconds=30
 ```
 
-The API process needs permission to execute the scanner and read the quarantine directory. Keep this storage outside the web root and restrict OS access to the API service account. The reviewer endpoints `GET /api/reviewer/verifications/{id}/documents` and `GET /api/reviewer/verifications/{id}/documents/{documentId}` require a database-assigned Reviewer/Admin role and return only documents whose scan status is `Available`. Downloads are attachments and use `Cache-Control: no-store`. For containers, install ClamAV in the image or mount a trusted scanner binary; simply setting the path does not install the scanner. Scan time is limited to 30 seconds by default (configurable from 1 to 120 seconds).
+The API process needs permission to execute the scanner and read the quarantine directory. Keep this storage outside the web root and restrict OS access to the API service account. The reviewer endpoints `GET /api/reviewer/verifications/{id}/documents` and `GET /api/reviewer/verifications/{id}/documents/{documentId}` require a database-assigned Reviewer/Admin/SuperAdmin role and return only documents whose scan status is `Available`. Downloads are attachments and use `Cache-Control: no-store`. For Docker Compose, named volumes persist both the private document directory and the ClamAV signature database. For other hosting platforms, mount persistent writable storage at the configured paths and restrict it to the API service account. The API starts before signature updates finish, so scans remain fail-closed until a usable database is available. Scan time is limited to 30 seconds by default (configurable from 1 to 120 seconds).
