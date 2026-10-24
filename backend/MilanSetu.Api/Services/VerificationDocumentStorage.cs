@@ -85,12 +85,16 @@ public sealed class ClamAvVerificationDocumentScanner(IConfiguration configurati
         process.StartInfo.ArgumentList.Add("--no-summary");
         process.StartInfo.ArgumentList.Add(physicalPath);
 
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var timeoutSeconds = Math.Clamp(configuration.GetValue<int?>("VerificationDocuments:ClamAv:TimeoutSeconds") ?? 30, 1, 120);
+        timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
         try
         {
             if (!process.Start()) return (false, "ScannerStartFailed");
-            var stdout = process.StandardOutput.ReadToEndAsync(ct);
-            var stderr = process.StandardError.ReadToEndAsync(ct);
-            await process.WaitForExitAsync(ct);
+            var stdout = process.StandardOutput.ReadToEndAsync(timeout.Token);
+            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            await process.WaitForExitAsync(timeout.Token);
             await Task.WhenAll(stdout, stderr);
 
             return process.ExitCode switch
@@ -99,6 +103,11 @@ public sealed class ClamAvVerificationDocumentScanner(IConfiguration configurati
                 1 => (false, "MalwareDetected"),
                 _ => (false, "ScannerError")
             };
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
+            return (false, "ScannerTimeout");
         }
         catch (OperationCanceledException)
         {
