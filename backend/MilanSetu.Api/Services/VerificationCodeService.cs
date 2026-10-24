@@ -41,9 +41,7 @@ public sealed class VerificationCodeSender(
         {
             if (environment.IsDevelopment())
             {
-                logger.LogWarning(
-                    "Email verification delivery is not configured in Development; OTP was not logged for destination {Destination}.",
-                    MaskEmail(destination));
+                logger.LogWarning("Email verification delivery is not configured in Development; OTP was not logged.");
                 return;
             }
 
@@ -77,7 +75,7 @@ public sealed class VerificationCodeSender(
         };
 
         await client.SendMailAsync(message, cancellationToken);
-        logger.LogInformation("Email verification code sent to masked destination {Destination}.", MaskEmail(destination));
+        logger.LogInformation("Email verification code sent.");
     }
 
     private async Task SendMobileAsync(string destination, string code, CancellationToken ct)
@@ -91,9 +89,7 @@ public sealed class VerificationCodeSender(
         {
             if (environment.IsDevelopment())
             {
-                logger.LogWarning(
-                    "SMS delivery is not configured in Development; OTP was not logged for destination {Destination}.",
-                    MaskPhone(destination));
+                logger.LogWarning("SMS delivery is not configured in Development; OTP was not logged.");
                 return;
             }
 
@@ -137,16 +133,9 @@ public sealed class VerificationCodeSender(
             throw new InvalidOperationException("SMS verification delivery failed. Please try again later.");
         }
 
-        logger.LogInformation("Mobile verification code sent to masked destination {Destination}.", MaskPhone(destination));
+        logger.LogInformation("Mobile verification code sent.");
     }
 
-    private static string MaskEmail(string value) => value.Contains('@') ? "***@***" : "***";
-
-    private static string MaskPhone(string value)
-    {
-        var digits = new string(value.Where(char.IsDigit).ToArray());
-        return digits.Length < 4 ? "***" : $"+***{digits[^4..]}";
-    }
 }
 
 public sealed class VerificationChallengeService(IConfiguration configuration)
