@@ -84,7 +84,7 @@ function App() {
         window.dispatchEvent(new Event('milansetu:auth-changed'))
       }
 
-      setMessage(mode === 'register' ? 'Account created. You can now log in.' : 'Signed in successfully.')
+      setMessage(mode === 'register' ? 'Account created. Log in and verify your email from the Trust & Verification section to build confidence in your profile.' : 'Signed in successfully.')
 
       if (mode === 'register') {
         setMode('login')
