@@ -46,12 +46,12 @@ export default function AuthenticatedWorkspace() {
   return <>
     <AccountSessionPanel />
     <LegalAcceptancePanel />
+    <VerificationPanel />
     <AdvertisingPanel />
     <ProfileEditor />
     <ProfilePhotoManager />
     <PrivacyPanel />
     <SafetyPanel />
-    <VerificationPanel />
     <DiscoveryPanel />
     <IncomingInterestsPanel />
     <ConnectionsPanel />
