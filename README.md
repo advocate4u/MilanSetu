@@ -42,7 +42,7 @@ Mobile/email verification codes are generated with a cryptographically secure ra
 Verification__HashKey=<at-least-32-byte-random-secret>
 ```
 
-Production deliberately rejects delivery until a real SMS/email provider is configured. OTP values are never returned by the API or written to logs in any environment. If delivery is not configured in Development, only a masked destination and configuration warning are logged; configure a local SMTP test server or Twilio test credentials to exercise the full flow. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge. 
+The API rejects delivery in every environment until a real SMS/email provider is configured. If SMTP or Twilio is missing or the provider rejects a message, the request returns HTTP 503; the challenge is discarded and the user can retry after delivery is restored. OTP values, destinations, and authentication credentials are never written to logs. Configure a local SMTP test server or Twilio test credentials to exercise the full flow. The flow enforces a 60-second resend cooldown, 10-minute code lifetime, and five incorrect attempts per challenge. 
 
 
 ### Twilio SMS delivery
