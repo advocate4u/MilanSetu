@@ -13,7 +13,6 @@ public interface IVerificationCodeSender
 }
 
 public sealed class VerificationCodeSender(
-    IHostEnvironment environment,
     IConfiguration configuration,
     ILogger<VerificationCodeSender> logger,
     IHttpClientFactory httpClientFactory) : IVerificationCodeSender
@@ -39,13 +38,8 @@ public sealed class VerificationCodeSender(
         if (string.IsNullOrWhiteSpace(host) || string.IsNullOrWhiteSpace(username) ||
             string.IsNullOrWhiteSpace(password) || string.IsNullOrWhiteSpace(fromAddress))
         {
-            if (environment.IsDevelopment())
-            {
-                logger.LogWarning("Email verification delivery is not configured in Development; OTP was not logged.");
-                return;
-            }
-
-            throw new InvalidOperationException("Email SMTP delivery is not configured for this environment.");
+            logger.LogWarning("Email verification delivery is not configured; no OTP was sent.");
+            throw new InvalidOperationException("Email verification delivery is not configured. Please try again later.");
         }
 
         if (!MailAddress.TryCreate(destination, out var recipient))
@@ -74,7 +68,16 @@ public sealed class VerificationCodeSender(
             Credentials = new NetworkCredential(username, password)
         };
 
-        await client.SendMailAsync(message, cancellationToken);
+        try
+        {
+            await client.SendMailAsync(message, cancellationToken);
+        }
+        catch (SmtpException ex)
+        {
+            logger.LogWarning("SMTP provider rejected verification delivery with status {StatusCode}.", ex.StatusCode);
+            throw new InvalidOperationException("Email verification delivery failed. Please try again later.");
+        }
+
         logger.LogInformation("Email verification code sent.");
     }
 
@@ -87,13 +90,8 @@ public sealed class VerificationCodeSender(
         if (string.IsNullOrWhiteSpace(accountSid) || string.IsNullOrWhiteSpace(authToken) ||
             string.IsNullOrWhiteSpace(fromNumber))
         {
-            if (environment.IsDevelopment())
-            {
-                logger.LogWarning("SMS delivery is not configured in Development; OTP was not logged.");
-                return;
-            }
-
-            throw new InvalidOperationException("SMS delivery is not configured for this environment.");
+            logger.LogWarning("SMS verification delivery is not configured; no OTP was sent.");
+            throw new InvalidOperationException("Mobile verification delivery is not configured. Please try again later.");
         }
 
         if (!E164Pattern.IsMatch(destination))
