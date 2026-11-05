@@ -54,7 +54,12 @@ export default function DiscoveryPanel() {
     } finally { setLoading(false) }
   }, [appliedCity, appliedMaxAge, appliedMinAge, page])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => {
+    void load()
+    const refresh = () => void load()
+    window.addEventListener('milansetu:discovery-refresh', refresh)
+    return () => window.removeEventListener('milansetu:discovery-refresh', refresh)
+  }, [load])
 
   const visibleItems = useMemo(() => items.filter(item => !blocked.has(item.userId)), [blocked, items])
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -90,6 +95,7 @@ export default function DiscoveryPanel() {
         setBlocked(current => new Set(current).add(profile.userId))
         if (selected?.userId === profile.userId) setSelected(null)
       }
+      window.dispatchEvent(new Event('milansetu:discovery-refresh'))
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to update the block.') }
     finally { setActionUserId(null) }
   }
