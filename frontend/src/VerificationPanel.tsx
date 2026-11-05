@@ -67,6 +67,8 @@ export default function VerificationPanel() {
     }
   }
 
+  const emailVerified = statusFor('Email') === 'Verified'
+
   const verifyOtp = async (type: OtpType) => {
     setBusy(type); setError(''); setSuccess('')
     try {
@@ -85,6 +87,10 @@ export default function VerificationPanel() {
 
   return <section className="verification-panel" aria-label="Profile verification">
     <div className="verification-head"><div><p className="eyebrow">TRUST & VERIFICATION</p><h2>Build trust with verification</h2><p>Verify your email or mobile number with a one-time code. Identity, education and employment requests are queued for human review. Verification documents are never published as part of your public profile.</p></div></div>
+    {!emailVerified && <div className="verification-onboarding" role="status">
+      <div><strong>One important next step: verify your email</strong><p>Email verification helps protect account access and gives other members more confidence in your profile.</p></div>
+      <button type="button" className="primary-button" disabled={busy !== null || cooldowns.Email > 0} onClick={() => void requestOtp('Email')}>{busy === 'Email' ? 'Sending code…' : cooldowns.Email > 0 ? `Resend in ${cooldowns.Email}s` : 'Verify email now'}</button>
+    </div>}
     {error && <p className="profile-error" role="alert">{error}</p>}
     {success && <p className="profile-success" role="status">{success}</p>}
     <div className="verification-grid">{labels.map(item => {
