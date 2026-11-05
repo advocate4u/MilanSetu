@@ -25,17 +25,19 @@ export default function SuperAdminPlatformSettingsPanel() {
 
   useEffect(() => {
     let active = true
+    let resolvedRole = ''
     void (async () => {
       try {
         const me = await api('/api/auth/me')
         if (!active) return
-        setRole(me.role || '')
-        if (me.role === 'SuperAdmin') {
+        resolvedRole = me.role || ''
+        setRole(resolvedRole)
+        if (resolvedRole === 'SuperAdmin') {
           const data = await api('/api/admin/platform-settings')
           if (active) setSettings(data)
         }
       } catch (error) {
-        if (active && role === 'SuperAdmin') {
+        if (active && resolvedRole === 'SuperAdmin') {
           setLoadError(error instanceof Error ? error.message : 'Unable to load platform settings.')
         }
       } finally {
