@@ -11,6 +11,7 @@ const labels: Array<{ type: VerificationType; label: string; description: string
 ]
 
 type OtpType = 'Mobile' | 'Email'
+type Cooldowns = Record<OtpType, number>
 
 export default function VerificationPanel() {
   const [authenticated, setAuthenticated] = useState(() => Boolean(sessionStorage.getItem('milansetu_access_token')))
@@ -18,7 +19,7 @@ export default function VerificationPanel() {
   const [busy, setBusy] = useState<VerificationType | null>(null)
   const [otpOpen, setOtpOpen] = useState<OtpType | null>(null)
   const [code, setCode] = useState('')
-  const [cooldown, setCooldown] = useState(0)
+  const [cooldowns, setCooldowns] = useState<Cooldowns>({ Mobile: 0, Email: 0 })
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
@@ -29,11 +30,20 @@ export default function VerificationPanel() {
   }, [])
 
   useEffect(() => {
-    if (!authenticated) { setItems([]); return }
+    if (!authenticated) { setItems([]); setOtpOpen(null); return }
     void getVerificationStatus().then(setItems).catch(e => setError(e instanceof Error ? e.message : 'Unable to load verification status.'))
   }, [authenticated])
 
-  useEffect(() => { const timer = window.setInterval(() => setCooldown(current => Math.max(0, current - 1)), 1000); return () => window.clearInterval(timer) }, [])
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setCooldowns(current => ({
+        Mobile: Math.max(0, current.Mobile - 1),
+        Email: Math.max(0, current.Email - 1),
+      }))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
   if (!authenticated) return null
   const statusFor = (type: VerificationType) => items.find(x => x.type === type)?.status ?? 'NotStarted'
 
@@ -41,12 +51,20 @@ export default function VerificationPanel() {
     setBusy(type); setError(''); setSuccess('')
     try {
       const result = await requestVerification(type)
-      setItems(current => current.some(item => item.type === type) ? current.map(item => item.type === type ? { ...item, status: 'Pending' } : item) : [...current, { type, status: 'Pending', requestedAt: new Date().toISOString(), verifiedAt: null }])
-      setOtpOpen(type); setCode('')
-      if ('resendAfterSeconds' in result) setCooldown(result.resendAfterSeconds)
+      setItems(current => current.some(item => item.type === type)
+        ? current.map(item => item.type === type ? { ...item, status: 'Pending' } : item)
+        : [...current, { type, status: 'Pending', requestedAt: new Date().toISOString(), verifiedAt: null }])
+      setOtpOpen(type)
+      setCode('')
+      if ('resendAfterSeconds' in result) {
+        setCooldowns(current => ({ ...current, [type]: result.resendAfterSeconds }))
+      }
       setSuccess(result.message)
-    } catch (e) { setError(e instanceof Error ? e.message : `Unable to send the ${type.toLowerCase()} verification code.`) }
-    finally { setBusy(null) }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Unable to send the ${type.toLowerCase()} verification code.`)
+    } finally {
+      setBusy(null)
+    }
   }
 
   const verifyOtp = async (type: OtpType) => {
@@ -54,21 +72,43 @@ export default function VerificationPanel() {
     try {
       const result = await verifyVerificationCode(type, code)
       setItems(current => current.map(item => item.type === type ? { ...item, status: 'Verified', verifiedAt: result.verifiedAt } : item))
-      setCode(''); setOtpOpen(null); setSuccess(result.message)
-    } catch (e) { setError(e instanceof Error ? e.message : `Unable to verify the ${type.toLowerCase()} code.`) }
-    finally { setBusy(null) }
+      setCode('')
+      setOtpOpen(null)
+      setCooldowns(current => ({ ...current, [type]: 0 }))
+      setSuccess(result.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : `Unable to verify the ${type.toLowerCase()} code.`)
+    } finally {
+      setBusy(null)
+    }
   }
 
   return <section className="verification-panel" aria-label="Profile verification">
     <div className="verification-head"><div><p className="eyebrow">TRUST & VERIFICATION</p><h2>Build trust with verification</h2><p>Verify your email or mobile number with a one-time code. Identity, education and employment requests are queued for human review. Verification documents are never published as part of your public profile.</p></div></div>
-    {error && <p className="profile-error" role="alert">{error}</p>}{success && <p className="profile-success" role="status">{success}</p>}
-    <div className="verification-grid">{labels.map(item => { const status = statusFor(item.type); const verified = status === 'Verified'; const isEmail = item.type === 'Email'; return <article className="verification-card" key={item.type}>
-      <div className="verification-card-top"><div><h3>{item.label}</h3><p>{item.description}</p></div><span className={`verification-status verification-${status.toLowerCase()}`}>{status === 'NotStarted' ? 'Not started' : status}</span></div>
-      {verified ? <strong className="verification-badge">✓ Verified</strong> : (isEmail || item.type === 'Mobile') ? <>
-        <button type="button" className="secondary-button" disabled={busy !== null || cooldown > 0} onClick={() => void requestOtp(item.type as OtpType)}>{busy === item.type ? 'Sending…' : cooldown > 0 ? `Resend in ${cooldown}s` : status === 'Pending' ? 'Send code again' : `Send ${item.label.toLowerCase()} code`}</button>
-        {otpOpen && <form className="verification-otp" onSubmit={e => { e.preventDefault(); void verifyOtp(item.type as OtpType) }}><label htmlFor={`verification-${item.type.toLowerCase()}-code`}>6-digit {item.label.toLowerCase()} code</label><div className="verification-otp-row"><input id={`verification-${item.type.toLowerCase()}-code`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required /><button type="submit" className="primary-button" disabled={busy !== null || code.length !== 6}>{busy === item.type ? 'Verifying…' : `Verify ${item.label.toLowerCase()}`}</button></div><small>The code expires after 10 minutes. Never share it with anyone.</small></form>}
-      </> : <button type="button" className="secondary-button" disabled={busy !== null || status === 'Pending'} onClick={() => void requestVerification(item.type)}>{busy === item.type ? 'Requesting…' : status === 'Pending' ? 'Under review' : 'Request verification'}</button>}
-    </article>})}</div>
+    {error && <p className="profile-error" role="alert">{error}</p>}
+    {success && <p className="profile-success" role="status">{success}</p>}
+    <div className="verification-grid">{labels.map(item => {
+      const status = statusFor(item.type)
+      const verified = status === 'Verified'
+      const otpType = item.type === 'Email' || item.type === 'Mobile' ? item.type : null
+      const isBusy = busy === item.type
+      return <article className="verification-card" key={item.type}>
+        <div className="verification-card-top"><div><h3>{item.label}</h3><p>{item.description}</p></div><span className={`verification-status verification-${status.toLowerCase()}`}>{status === 'NotStarted' ? 'Not started' : status}</span></div>
+        {verified ? <strong className="verification-badge">✓ Verified</strong> : otpType ? <>
+          <button type="button" className="secondary-button" disabled={busy !== null || cooldowns[otpType] > 0} onClick={() => void requestOtp(otpType)}>
+            {isBusy ? 'Sending…' : cooldowns[otpType] > 0 ? `Resend in ${cooldowns[otpType]}s` : status === 'Pending' ? 'Send code again' : `Send ${item.label.toLowerCase()} code`}
+          </button>
+          {otpOpen === otpType && <form className="verification-otp" onSubmit={e => { e.preventDefault(); void verifyOtp(otpType) }}>
+            <label htmlFor={`verification-${otpType.toLowerCase()}-code`}>6-digit {item.label.toLowerCase()} code</label>
+            <div className="verification-otp-row">
+              <input id={`verification-${otpType.toLowerCase()}-code`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" required />
+              <button type="submit" className="primary-button" disabled={busy !== null || code.length !== 6}>{isBusy ? 'Verifying…' : `Verify ${item.label.toLowerCase()}`}</button>
+            </div>
+            <small>The code expires after 10 minutes. Never share it with anyone.</small>
+          </form>}
+        </> : <button type="button" className="secondary-button" disabled={busy !== null || status === 'Pending'} onClick={() => { setBusy(item.type); setError(''); setSuccess(''); void requestVerification(item.type).then(result => { setItems(current => [...current.filter(x => x.type !== item.type), { type: item.type, status: 'Pending', requestedAt: new Date().toISOString(), verifiedAt: null }]); setSuccess(result.message) }).catch(e => setError(e instanceof Error ? e.message : 'Unable to request verification.')).finally(() => setBusy(null)) }}>{isBusy ? 'Requesting…' : status === 'Pending' ? 'Under review' : 'Request verification'}</button>}
+      </article>
+    })}</div>
     <p className="verification-note">A verification badge appears only after verification is successfully completed. OTP delivery is fail-closed in production until a real SMS/email provider is configured.</p>
   </section>
 }
