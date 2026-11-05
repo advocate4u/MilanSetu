@@ -18,7 +18,13 @@ public sealed class DiscoveryController(MilanSetuDbContext db) : ControllerBase
         pageSize = Math.Clamp(pageSize, 1, 50);
         var today = DateOnly.FromDateTime(DateTime.UtcNow);
         var currentUserId = GetUserId();
-        var query = db.Profiles.AsNoTracking().Where(x => x.UserId != currentUserId && x.Visibility != ProfileVisibility.Hidden);
+        var query = db.Profiles.AsNoTracking()
+            .Where(x => x.UserId != currentUserId && x.Visibility != ProfileVisibility.Hidden)
+            // Exclude blocks in either direction: users should not discover someone
+            // they blocked, or someone who blocked them.
+            .Where(x => !db.Blocks.Any(b =>
+                (b.BlockerUserId == currentUserId && b.BlockedUserId == x.UserId) ||
+                (b.BlockerUserId == x.UserId && b.BlockedUserId == currentUserId)));
         if (minAge is >= 18 and <= 100) query = query.Where(x => x.DateOfBirth <= today.AddYears(-minAge.Value));
         if (maxAge is >= 18 and <= 100) query = query.Where(x => x.DateOfBirth > today.AddYears(-maxAge.Value - 1));
         if (!string.IsNullOrWhiteSpace(city)) query = query.Where(x => x.Locations.Any(l => l.Location.CityName == city));
